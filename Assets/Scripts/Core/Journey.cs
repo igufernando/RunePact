@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
+using System.Security.Cryptography;
 
 namespace RunePact.Core
 {
@@ -11,7 +13,7 @@ namespace RunePact.Core
         public string Title, Detail;
         public CardVariant Card;
         public Relic Relic;
-        public int Owner;
+        public int Owner, Slot;
     }
 
     public sealed class Journey
@@ -19,8 +21,8 @@ namespace RunePact.Core
         public Battle Current { get; private set; }
         public int Encounter { get; private set; } = 1;
         public EnemyFormation Formation { get; private set; }
-        public bool AwaitingReward => Current.Outcome == 1 && Encounter < 3;
-        public bool Complete => Current.Outcome == 1 && Encounter == 3;
+        public bool AwaitingReward => Current.Outcome == 1 && Encounter < 2;
+        public bool Complete => Current.Outcome == 1 && Encounter == 2;
         public readonly List<Relic> Relics = new List<Relic>();
         public readonly List<Card> ExtraCards = new List<Card>();
         public readonly int[] CardBoost = new int[3];
@@ -34,19 +36,19 @@ namespace RunePact.Core
         }
         EnemyFormation PickFormation(int encounter)
         {
-            if(encounter==3)return EnemyFormation.Regent;
+            if(encounter==2)return EnemyFormation.Regent;
             var options=new[]{EnemyFormation.Vanguard,EnemyFormation.Shieldwall,EnemyFormation.Hunt,EnemyFormation.Pyre};
-            return options[Math.Abs(seed+encounter*7)%options.Length];
+            return options[(int)((uint)(seed+encounter*7)%(uint)options.Length)];
         }
         public RewardOffer[] GetOffers()
         {
-            int owner=Math.Abs(seed+Encounter)%3;
-            CardVariant card=Encounter==1?CardVariant.Comet:CardVariant.Renewal;
+            int owner=(int)((uint)(seed+Encounter)%3);
+            CardVariant card=(CardVariant)(1+(uint)seed%9);
             Relic[] relics={Relic.PactMedallion,Relic.AncientEmber,Relic.LivingGrimoire,Relic.CeremonialArrow,Relic.OakBark};
-            Relic chosen=relics.First(x=>!Relics.Contains(x));
+            Relic chosen=relics[(int)((uint)seed%5)];
             return new[]{
-                new RewardOffer {Kind=RewardKind.Card,Card=card,Owner=owner,Title=card==CardVariant.Comet?"COMETA DE ÂMBAR":"RITO DE RENOVAÇÃO",Detail=card==CardVariant.Comet?"Adicione uma carta de dano em área ao baralho.":"Adicione uma carta de cura ao baralho."},
-                new RewardOffer {Kind=RewardKind.Upgrade,Owner=owner,Title="APRIMORAR "+new[]{"AURA","LYRA","KAEL"}[owner],Detail="As cartas desse guerreiro recebem +6 de poder nesta jornada."},
+                new RewardOffer {Kind=RewardKind.Card,Card=card,Owner=owner,Title=Current.Describe(new Card(owner,2,card)).Name,Detail="Adiciona esta carta à mão inicial do chefe e ao baralho."},
+                new RewardOffer {Kind=RewardKind.Upgrade,Owner=owner,Slot=0,Title=Current.Describe(new Card(owner,0)).Name+" +",Detail="Aprimora somente esta habilidade: +6 de poder em todas as cópias."},
                 new RewardOffer {Kind=RewardKind.Relic,Relic=chosen,Title=RelicTitle(chosen),Detail=RelicDetail(chosen)}
             };
         }
@@ -55,12 +57,17 @@ namespace RunePact.Core
             if (!AwaitingReward || choice < 0 || choice > 2) return false;
             var offer=GetOffers()[choice];
             if(offer.Kind==RewardKind.Card)ExtraCards.Add(new Card(offer.Owner,2,offer.Card));
-            if(offer.Kind==RewardKind.Upgrade)CardBoost[offer.Owner]+=6;
             if(offer.Kind==RewardKind.Relic&&!Relics.Contains(offer.Relic))Relics.Add(offer.Relic);
             var previous = Current;
             Encounter++;
             Formation=PickFormation(Encounter);
             Current = new Battle(seed + Encounter, previous.Fighters.Take(3).Select(f => f.Gear).ToArray(), Encounter, Formation, Relics, ExtraCards, CardBoost);
+            Array.Copy(previous.SkillBoost,Current.SkillBoost,9);
+            if(offer.Kind==RewardKind.Upgrade)Current.SkillBoost[offer.Owner*3+offer.Slot]+=6;
+            if(offer.Kind==RewardKind.Card){
+                var rewardCard=Current.Deck.FirstOrDefault(x=>x.Variant==offer.Card&&x.Owner==offer.Owner);
+                if(rewardCard!=null){Current.Deck.Remove(rewardCard);var replaced=Current.Hand[1];Current.Hand[1]=rewardCard;Current.Deck.Add(replaced);}
+            }
             Current.Shards = previous.Shards + 2;
             // Todo prêmio leva a um novo encontro com recuperação básica; níveis e equipamento persistem.
             // Every reward leads to a new encounter with basic recovery; equipment and upgrade tiers persist.
@@ -77,28 +84,31 @@ namespace RunePact.Core
         }
         public string Save()
         {
-            string relics=string.Join(",",Relics.Select(x=>((int)x).ToString()).ToArray());
-            string cards=string.Join(";",ExtraCards.Select(x=>x.Owner+","+x.Slot+","+(int)x.Variant).ToArray());
-            string heroes=string.Join(";",Current.Fighters.Take(3).Select(x=>x.Gear+","+x.Tier+","+x.Hp+","+x.MaxHp).ToArray());
-            return seed+"|"+Encounter+"|"+(int)Formation+"|"+Current.Shards+"|"+string.Join(",",CardBoost)+"|"+relics+"|"+cards+"|"+heroes;
+            using(var stream=new MemoryStream())using(var w=new BinaryWriter(stream)){
+                w.Write(4);w.Write(seed);w.Write(Encounter);w.Write((int)Formation);
+                w.Write(Relics.Count);foreach(var relic in Relics)w.Write((int)relic);
+                foreach(int boost in CardBoost)w.Write(boost);Battle.WriteCards(w,ExtraCards);Current.WriteSnapshot(w);w.Flush();
+                byte[] data=stream.ToArray();using(var hash=SHA256.Create())return Convert.ToBase64String(hash.ComputeHash(data))+":"+Convert.ToBase64String(data);
+            }
         }
         public static bool TryRestore(string snapshot,out Journey journey)
         {
             journey=null;
             try {
-                var parts=snapshot.Split('|');if(parts.Length!=8)return false;
-                int seed=int.Parse(parts[0]),encounter=int.Parse(parts[1]),shards=int.Parse(parts[3]);
-                var heroes=parts[7].Split(';').Select(x=>x.Split(',').Select(int.Parse).ToArray()).ToArray();
-                if(heroes.Length!=3)return false;
-                journey=new Journey(seed,heroes.Select(x=>x[0]).ToArray());
-                journey.Encounter=encounter;journey.Formation=(EnemyFormation)int.Parse(parts[2]);
-                foreach(var value in parts[5].Split(new[]{','},StringSplitOptions.RemoveEmptyEntries))journey.Relics.Add((Relic)int.Parse(value));
-                foreach(var value in parts[6].Split(new[]{';'},StringSplitOptions.RemoveEmptyEntries)){var card=value.Split(',').Select(int.Parse).ToArray();journey.ExtraCards.Add(new Card(card[0],card[1],(CardVariant)card[2]));}
-                var boosts=parts[4].Split(',').Select(int.Parse).ToArray();for(int i=0;i<3;i++)journey.CardBoost[i]=boosts[i];
-                journey.Current=new Battle(seed+encounter,heroes.Select(x=>x[0]).ToArray(),encounter,journey.Formation,journey.Relics,journey.ExtraCards,journey.CardBoost);
-                journey.Current.Shards=shards;
-                for(int i=0;i<3;i++){var target=journey.Current.Fighters[i];target.Gear=heroes[i][0];target.Tier=heroes[i][1];target.Hp=heroes[i][2];target.MaxHp=heroes[i][3];}
-                journey.Current.Plan();return true;
+                if(string.IsNullOrEmpty(snapshot)||snapshot.Length>65536)return false;
+                var parts=snapshot.Split(':');if(parts.Length!=2)return false;byte[] data=Convert.FromBase64String(parts[1]);
+                using(var hash=SHA256.Create())if(Convert.ToBase64String(hash.ComputeHash(data))!=parts[0])return false;
+                using(var stream=new MemoryStream(data))using(var r=new BinaryReader(stream)){
+                    if(r.ReadInt32()!=4)return false;int seed=r.ReadInt32(),encounter=Battle.ReadNumber(r,1,2);
+                    var formation=(EnemyFormation)Battle.ReadNumber(r,0,4);if((encounter==2)!=(formation==EnemyFormation.Regent))return false;
+                    var candidate=new Journey(seed);candidate.Encounter=encounter;candidate.Formation=formation;
+                    int count=Battle.ReadNumber(r,0,5);for(int i=0;i<count;i++)candidate.Relics.Add((Relic)Battle.ReadNumber(r,0,4));
+                    if(candidate.Relics.Distinct().Count()!=count)return false;
+                    for(int i=0;i<3;i++)candidate.CardBoost[i]=Battle.ReadNumber(r,0,60);
+                    candidate.ExtraCards.AddRange(Battle.ReadCards(r,20));
+                    candidate.Current=new Battle(seed,null,encounter,formation,candidate.Relics,candidate.ExtraCards,candidate.CardBoost);
+                    candidate.Current.ReadSnapshot(r);if(stream.Position!=stream.Length)return false;journey=candidate;return true;
+                }
             } catch {journey=null;return false;}
         }
         public static string RelicTitle(Relic relic)

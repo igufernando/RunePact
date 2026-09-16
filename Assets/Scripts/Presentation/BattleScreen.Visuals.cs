@@ -36,17 +36,17 @@ namespace RunePact.Presentation
         Color EffectColor(Effect effect,int owner)
         {
             switch(effect){
-                case Effect.Mend: return new Color(.57f,1f,.62f);
+                case Effect.Mend: case Effect.Regenerate: case Effect.Thorns: return new Color(.57f,1f,.62f);
                 case Effect.Guard: case Effect.Rally: case Effect.Fortify: return new Color(.48f,.88f,1f);
                 case Effect.Burn: return new Color(1f,.53f,.20f);
-                case Effect.Channel: case Effect.Volley: return violet;
-                case Effect.Mark: return gold;
+                case Effect.Channel: case Effect.Volley: case Effect.Weaken: case Effect.Stun: return violet;
+                case Effect.Mark: case Effect.Vulnerable: return gold;
                 default: return owner==1||owner==4?violet:gold;
             }
         }
         bool FriendlyEffect(Effect effect)
         {
-            return effect==Effect.Guard||effect==Effect.Rally||effect==Effect.Fortify||effect==Effect.Channel||effect==Effect.Mend;
+            return effect==Effect.Guard||effect==Effect.Rally||effect==Effect.Fortify||effect==Effect.Channel||effect==Effect.Mend||effect==Effect.Regenerate||effect==Effect.Thorns;
         }
         Vector2 UnitCenter(int id){return positions[id]+new Vector2(110,78);}
 
@@ -88,7 +88,7 @@ namespace RunePact.Presentation
             Vector2 center=UnitCenter(target);
             var stage=Box(fxRoot,"Impact",center.x,center.y,1,1);
             var ring=Orb(stage,FantasySkin.Ring,-58,-58,116,116,color);
-            Sprite symbol=effect==Effect.Burn?FantasySkin.Flame:effect==Effect.Mend?FantasySkin.Leaf:
+            Sprite symbol=effect==Effect.Burn?FantasySkin.Flame:effect==Effect.Mend||effect==Effect.Regenerate||effect==Effect.Thorns?FantasySkin.Leaf:
                 effect==Effect.Guard||effect==Effect.Rally||effect==Effect.Fortify?FantasySkin.Shield:
                 effect==Effect.Strike||effect==Effect.Pierce?FantasySkin.Slash:FantasySkin.Spark;
             var glyph=Orb(stage,symbol,-43,-51,86,102,color);

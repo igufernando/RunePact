@@ -12,17 +12,19 @@ O idioma atual para jogadores é somente português brasileiro.
 
 ### Recursos do protótipo
 
-Consulte a [evolução de gameplay](Docs/GAMEPLAY-V2.md) para a jornada de três encontros, recompensas, papéis e efeitos.
+Consulte o [teste rápido e clareza de combate](Docs/GAMEPLAY-V4.md) para o estado atual: **um encontro → recompensa → chefe solo com 120 de vida**, cartas ilustradas, novos estados e salvamento exato. As versões V2/V3 registram marcos anteriores.
 
 Consulte também [jornada e decisões](Docs/GAMEPLAY-V3.md) para formações, relíquias, chefe, pausa e salvamento local.
 
 A [direção da interface e dos efeitos](Docs/VISUAL-DESIGN.md) descreve a HUD de fantasia, as cartas em pergaminho e a apresentação do combate.
 
-- Batalha 3 contra 3 com intenções inimigas visíveis.
+- Primeiro combate 3 contra 3, seguido pelo Regente de Âmbar, com intenções inimigas visíveis.
 - Baralho compartilhado, energia, escudo, cura, queimadura, dano em área e dano perfurante.
 - Duas escolhas de equipamento por aliado e três níveis de melhoria durante a partida.
 - Bônus de Pacto por usar os três aliados em um turno.
 - Personagens e arena originais em pixel art gerados para o projeto.
+- Seis novas cartas, melhorias de habilidade individual, relíquias e inspeção de estados.
+- Efeitos persistentes, respiração ancorada nos pés, pausa e velocidade 1×/2×.
 
 ### Início rápido
 
@@ -45,7 +47,7 @@ A cena cria propositalmente a interface de gameplay durante a execução. A aus�
 
 ### Verificações de qualidade
 
-Use **RunePact > Test combat rules** dentro da Unity após mudanças de gameplay. O protótipo inicial passou anteriormente em 2.608 verificações distribuídas por 80 batalhas simuladas com seeds; veja as [notas de QA](Docs/QA.md) para escopo e limitações.
+Use **RunePact > Test combat rules** dentro da Unity após mudanças de gameplay. A rodada V4 passou em 5.153 verificações, com 80 batalhas base e 45 jornadas variadas; veja as [notas de QA](Docs/QA.md) para escopo, checkpoints forçados e limitações.
 
 ### Regras de contribuição
 
@@ -67,17 +69,19 @@ The current player-facing language is Brazilian Portuguese only.
 
 ### Prototype features
 
-See [gameplay evolution](Docs/GAMEPLAY-V2.md) for the three-encounter journey, rewards, roles, and effects.
+See [quick test and combat clarity](Docs/GAMEPLAY-V4.md) for the current state: **one encounter → reward → solo boss with 120 health**, illustrated cards, new states, and exact saves. V2/V3 record earlier milestones.
 
 See [journey and decisions](Docs/GAMEPLAY-V3.md) for formations, relics, boss, pause, and local saving.
 
 The [interface and effects direction](Docs/VISUAL-DESIGN.md) describes the fantasy HUD, parchment cards, and combat presentation.
 
-- 3v3 battle with visible enemy intentions.
+- First 3v3 battle followed by the Amber Regent, with visible enemy intentions.
 - Shared deck, energy, shield, healing, burn, area damage, and piercing damage.
 - Two equipment choices per ally and three in-match upgrade tiers.
 - A Pact bonus for using all three allies in one turn.
 - Original generated pixel-art character and arena assets.
+- Six new cards, individual ability upgrades, relics, and status inspection.
+- Persistent effects, foot-anchored breathing, pause, and 1×/2× speed.
 
 ### Quick start
 
@@ -100,7 +104,7 @@ The scene intentionally creates its gameplay UI at runtime. The absence of stati
 
 ### Quality checks
 
-Use **RunePact > Test combat rules** inside Unity after gameplay changes. The initial prototype previously passed 2,608 assertions across 80 seeded simulated battles; see the [QA notes](Docs/QA.md) for scope and limitations.
+Use **RunePact > Test combat rules** inside Unity after gameplay changes. V4 passed 5,153 assertions with 80 base battles and 45 varied journeys; see the [QA notes](Docs/QA.md) for scope, forced checkpoints, and limitations.
 
 ### Contribution rules
 

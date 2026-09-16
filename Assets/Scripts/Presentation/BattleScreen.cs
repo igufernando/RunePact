@@ -24,7 +24,7 @@ namespace RunePact.Presentation
         readonly RectTransform[] units=new RectTransform[6];
         readonly Image[] portraits=new Image[6],hpBars=new Image[6], outlines=new Image[6];
         readonly Text[] hpTexts=new Text[6],statuses=new Text[6],intentTexts=new Text[6];
-        readonly Vector2[] positions={new Vector2(500,285),new Vector2(80,190),new Vector2(290,315),new Vector2(880,285),new Vector2(1300,190),new Vector2(1090,315)};
+        readonly Vector2[] positions={new Vector2(475,285),new Vector2(45,235),new Vector2(245,325),new Vector2(905,285),new Vector2(1335,235),new Vector2(1135,325)};
         readonly Sprite[] sprites=new Sprite[6];
         int selected=-1,seed=7241; bool busy, mutedAudio;
         float noticeUntil; string notice="";
@@ -34,7 +34,7 @@ namespace RunePact.Presentation
         {
             Active=this; Application.targetFrameRate=60;
             font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            FantasySkin.Initialize();LoadSprites(); BuildScreen(); ResetBattle();
+            FantasySkin.Initialize();LoadSprites(); BuildScreen();BuildEnhancements();if(TryReview())return;ResetBattle();ShowStartMenu();
         }
         void LoadSprites()
         {
@@ -46,7 +46,8 @@ namespace RunePact.Presentation
             for(int i=0;i<pixels.Length;i++) {var c=pixels[i];if(c.r>160&&c.b>145&&c.g<115&&Math.Min(c.r,c.b)-c.g>85)c.a=0;pixels[i]=c;}
             tex.SetPixels32(pixels);tex.Apply();tex.filterMode=FilterMode.Point;tex.wrapMode=TextureWrapMode.Clamp;
             int w=tex.width/3,h=tex.height/2;
-            for(int i=0;i<6;i++)sprites[i]=Sprite.Create(tex,new Rect(i%3*w,(1-i/3)*h,w,h),new Vector2(.5f,.5f),100,0,SpriteMeshType.FullRect);
+            for(int i=0;i<6;i++)sprites[i]=TrimmedSprite(tex,i%3*w,(1-i/3)*h,w,h);
+            LoadBoss();
         }
         RectTransform Box(Transform parent,string name,float x,float y,float w,float h,Color? fill=null)
         {
@@ -111,14 +112,19 @@ namespace RunePact.Presentation
             logLabel=Label(root,"",1390,803,172,67,12,muted,TextAnchor.UpperLeft);
             Label(root,"1–6  escolher carta    •    toque no alvo    •    Esc  cancelar",370,880,860,18,11,muted,TextAnchor.MiddleCenter);
             var ev=new GameObject("Input",typeof(EventSystem),typeof(StandaloneInputModule));
+            ev.GetComponent<EventSystem>().sendNavigationEvents=false;
             sound=gameObject.AddComponent<AudioSource>();attackSound=Synth(160,.12f);guardSound=Synth(480,.18f);clickSound=Synth(720,.035f);
         }
         void BuildUnit(int id)
         {
             var r=Box(root,"Fighter "+id,positions[id].x,positions[id].y,220,210);units[id]=r;
             Orb(r,FantasySkin.Circle,30,152,166,27,new Color(.08f,.13f,.12f,.38f));
-            portraits[id]=Picture(r,sprites[id],8,-15,204,188);
-            if(id>=3) {portraits[id].rectTransform.localScale=new Vector3(-1,1,1);portraits[id].rectTransform.anchoredPosition=new Vector2(212,15);}
+            Orb(r,FantasySkin.Circle,63,157,96,13,new Color(.04f,.07f,.06f,.48f));
+            portraits[id]=Picture(r,sprites[id],0,0,204,188);
+            portraits[id].rectTransform.pivot=new Vector2(.5f,0);
+            portraits[id].rectTransform.anchoredPosition=new Vector2(110,-166);
+            portraits[id].rectTransform.localScale=new Vector3(id<3?1:-1,1,1);
+            BuildStatusVisuals(r,id);
             outlines[id]=Orb(r,FantasySkin.Ring,20,142,185,46,Color.clear);
             var hit=Box(r,"Select target",0,-25,220,222,Color.clear);hit.GetComponent<Image>().raycastTarget=true;
             var btn=hit.gameObject.AddComponent<Button>();btn.targetGraphic=hit.GetComponent<Image>();int n=id;btn.onClick.AddListener(()=>ClickUnit(n));
@@ -134,17 +140,17 @@ namespace RunePact.Presentation
         {
             StopAllCoroutines();busy=false;selected=-1;ClearOverlay();
             foreach(Transform effect in fxRoot)Destroy(effect.gameObject);
-            rewardOpen=false;paused=false;Time.timeScale=1;
+            rewardOpen=false;paused=false;Time.timeScale=animationSpeed;
             Journey restored;
-            if(firstLaunch&&PlayerPrefs.HasKey("RunePactJourney")&&Journey.TryRestore(PlayerPrefs.GetString("RunePactJourney"),out restored)){journey=restored;notice="Jornada retomada do último ponto salvo.";}
-            else {if(!firstLaunch)PlayerPrefs.DeleteKey("RunePactJourney");int[] load=Match==null?null:Match.Fighters.Take(3).Select(f=>f.Gear).ToArray();journey=new Journey(seed++,load);}
+            if(firstLaunch&&PlayerPrefs.HasKey("RunePactJourneyV4")&&Journey.TryRestore(PlayerPrefs.GetString("RunePactJourneyV4"),out restored)){journey=restored;notice="Jornada retomada do último ponto salvo.";}
+            else {int[] load=Match==null?null:Match.Fighters.Take(3).Select(f=>f.Gear).ToArray();journey=new Journey(seed++,load);}
             firstLaunch=false;Match=journey.Current;
             for(int i=0;i<6;i++)units[i].anchoredPosition=new Vector2(positions[i].x,-positions[i].y);
             SaveJourney();Refresh();
         }
         void Refresh()
         {
-            roundLabel.text="Encontro "+journey.Encounter+" de 3  •  Rodada "+Match.Round;turnLabel.text=Match.Outcome!=0?"BATALHA CONCLUÍDA":Match.Formation==EnemyFormation.Regent&&Match.BossPhase==2?"REGENTE • FASE 2":busy?(Match.PlayerTurn?"CONJURANDO…":"TURNO DOS EXILADOS"):"SEU TURNO";turnLabel.color=Match.Formation==EnemyFormation.Regent&&Match.BossPhase==2?gold:!Match.PlayerTurn?red:teal;
+            roundLabel.text=(journey.Encounter==2?"CHEFE":"ENCONTRO 1 / 1")+"  •  Rodada "+Match.Round;turnLabel.text=Match.Outcome!=0?"BATALHA CONCLUÍDA":Match.Formation==EnemyFormation.Regent&&Match.BossPhase==2?"REGENTE • FASE 2":busy?(Match.PlayerTurn?"CONJURANDO…":"TURNO DOS EXILADOS"):"SEU TURNO";turnLabel.color=Match.Formation==EnemyFormation.Regent&&Match.BossPhase==2?gold:!Match.PlayerTurn?red:teal;
             energyLabel.text=Match.Energy+" / 4";shardLabel.text="◆  "+Match.Shards+" fragmentos";
             pactLabel.text="PACTO  "+Match.Harmony+" / 3\n"+(Match.HarmonyUsed?"+1 energia ativada":"3 guerreiros = +1 energia");
             deckLabel.text="BARALHO  "+Match.Deck.Count+"\nDESCARTE  "+Match.Discard.Count;
@@ -156,13 +162,14 @@ namespace RunePact.Presentation
                 portraits[i].color=f.Alive?Color.white:new Color(.3f,.35f,.4f,.35f);
                 statuses[i].text=!f.Alive?"DERROTADO":(f.Shield>0?"ESCUDO "+f.Shield+"  ":"")+(f.Burn>0?"QUEIMA "+f.Burn+"t":"");
                 if(f.Alive)statuses[i].text+=(f.Mark>0?" • MARCA":"")+(f.Fortified>0?" • FIRME":"")+(f.Channel>0?" • CANAL +"+f.Channel:"");
+                if(f.Alive)statuses[i].text+=(f.Weak>0?" • FRAQUEZA":"")+(f.Vulnerable>0?" • VULNERÁVEL":"")+(f.Regen>0?" • REGEN "+f.Regen:"")+(f.Thorns>0?" • ESPINHOS":"")+(f.Stun>0?" • ATORDOADO":"");
                 statuses[i].fontSize=11;
                 bool valid=selected>=0&&selected<Match.Hand.Count&&Match.CanTarget(Match.Hand[selected],i);
                 outlines[i].color=valid?gold:Color.clear;
                 var intent=Match.Intents.FirstOrDefault(x=>x.Owner==i);
                 intentTexts[i].text=!f.Alive?"":i<3?Match.GearName(i)+"  I"+new string('I',f.Tier):intent==null?"":intent.Label+" "+intent.Power+" → "+(intent.Effect==Effect.Volley?"todos":Match.Fighters[intent.Target].Name);
             }
-            RebuildHand();UpdateHint();
+            RefreshEnhancements();RebuildHand();UpdateHint();
         }
         void RebuildHand()
         {
@@ -182,7 +189,7 @@ namespace RunePact.Presentation
                 Label(r,(i+1).ToString(),150,12,20,20,12,cream,TextAnchor.MiddleCenter);
                 var name=Label(r,a.Name,7,86,166,25,18,writing,TextAnchor.MiddleCenter,true);
                 name.resizeTextForBestFit=true;name.resizeTextMinSize=14;name.resizeTextMaxSize=18;
-                Label(r,a.Source+(c.Slot==2?" • N"+(f.Tier+1):""),8,111,164,19,11,tint,TextAnchor.MiddleCenter);
+                Label(r,c.Variant!=CardVariant.Standard?(c.Variant==CardVariant.Tremor?"JORNADA • ÉPICA":"JORNADA • RARA"):a.Source+(c.Slot==2?" • N"+(f.Tier+1):""),8,111,164,19,11,tint,TextAnchor.MiddleCenter);
                 Label(r,a.Description,12,136,156,59,13,writing,TextAnchor.UpperLeft);
                 Round(r,"Role ribbon",7,197,166,17,tint);
                 Label(r,f.Name+" • "+(a.Friendly?"SUPORTE":"ATAQUE"),7,196,166,18,10,cream,TextAnchor.MiddleCenter,true);
@@ -201,7 +208,7 @@ namespace RunePact.Presentation
         public void ClickUnit(int id)
         {
             if(busy||overlay!=null||Match.Outcome!=0)return;
-            if(selected<0){Notify(Match.Fighters[id].Name+" • selecione primeiro uma carta na mão.");return;}
+            if(selected<0){ShowFighterDetails(id);return;}
             var card=Match.Hand[selected];var a=Match.Describe(card);int owner=card.Owner;
             var before=Match.Fighters.Select(f=>f.Hp).ToArray();
             var shields=Match.Fighters.Select(f=>f.Shield).ToArray();
@@ -268,14 +275,16 @@ namespace RunePact.Presentation
             Label(p,title,30,20,970,44,29,gold,TextAnchor.MiddleLeft,true);
             ButtonAt(p,"×",1050,22,49,43,ClearOverlay,panel,26);return p;
         }
-        void ClearOverlay(){if(overlay!=null)Destroy(overlay.gameObject);overlay=null;if(paused){paused=false;Time.timeScale=1;}}
+        void ClearOverlay(){if(overlay!=null){overlay.gameObject.SetActive(false);Destroy(overlay.gameObject);}overlay=null;if(paused){paused=false;Time.timeScale=animationSpeed;}}
         void ShowPause()
         {
             if(busy||rewardOpen)return;
-            var p=Modal("JORNADA EM PAUSA",300);
+            var p=Modal("JORNADA EM PAUSA",360);
             paused=true;Time.timeScale=0;SaveJourney();
-            Label(p,"A jornada está salva neste dispositivo. Ao abrir o jogo, você volta a este encontro.\nA mão é renovada ao retomar.",35,88,1060,65,21,cream,TextAnchor.MiddleCenter);
-            ButtonAt(p,"CONTINUAR",300,195,530,62,ClearOverlay,new Color(.28f,.47f,.39f),23);
+            Label(p,"Batalha salva: vida, energia, cartas, efeitos e ordem do baralho.\nO jogo retoma exatamente a última ação concluída.",35,88,1060,65,21,cream,TextAnchor.MiddleCenter);
+            ButtonAt(p,"VELOCIDADE  "+animationSpeed+"×",45,180,500,56,()=>{ToggleSpeed();ShowPause();},panel,21);
+            ButtonAt(p,"SOM  "+(mutedAudio?"DESLIGADO":"LIGADO"),570,180,515,56,()=>{mutedAudio=!mutedAudio;PlayerPrefs.SetInt("RunePactMuted",mutedAudio?1:0);ShowPause();},panel,21);
+            ButtonAt(p,"CONTINUAR",300,265,530,62,ClearOverlay,new Color(.28f,.47f,.39f),23);
         }
         void ShowGear()
         {
@@ -287,17 +296,17 @@ namespace RunePact.Presentation
                 Label(col,"NÍVEL "+(f.Tier+1)+" / 3",115,57,210,24,14,teal);
                 Label(col,Match.GearName(i),15,114,310,31,21,gold,TextAnchor.MiddleCenter,true);
                 var a=Match.Describe(new Card(i,2));Label(col,a.Name+"\n"+a.Description,20,151,300,80,17,cream,TextAnchor.UpperLeft);
-                var swap=ButtonAt(col,"TROCAR EQUIPAMENTO",15,238,310,38,()=>{if(Match.ChangeGear(n)){Refresh();ShowGear();}},ink,15);swap.interactable=Match.Round==1&&Match.TotalPlayed==0&&Match.Outcome==0;
-                var forge=ButtonAt(col,f.Tier>=2?"NÍVEL MÁXIMO":"FORJAR  •  1 energia + "+(f.Tier+1)+" ◆",15,285,310,38,()=>{if(Match.Upgrade(n,out var error)){Refresh();ShowGear();Tone(guardSound);}else {ClearOverlay();Notify(error);}},new Color(.16f,.32f,.30f),15);forge.interactable=f.Alive&&f.Tier<2&&Match.Outcome==0&&Match.Energy>=1&&Match.Shards>=f.Tier+1;
+                var swap=ButtonAt(col,"TROCAR EQUIPAMENTO",15,238,310,38,()=>{if(Match.ChangeGear(n)){SaveJourney();Refresh();ShowGear();}},ink,15);swap.interactable=Match.Round==1&&Match.TotalPlayed==0&&Match.Outcome==0;
+                var forge=ButtonAt(col,f.Tier>=2?"NÍVEL MÁXIMO":"FORJAR  •  1 energia + "+(f.Tier+1)+" ◆",15,285,310,38,()=>{if(Match.Upgrade(n,out var error)){SaveJourney();Refresh();ShowGear();Tone(guardSound);}else {ClearOverlay();Notify(error);}},new Color(.16f,.32f,.30f),15);forge.interactable=f.Alive&&f.Tier<2&&Match.Outcome==0&&Match.Energy>=1&&Match.Shards>=f.Tier+1;
             }
             Label(p,"As cartas base permanecem. O equipamento altera a habilidade especial em todas as cópias do baralho.",30,480,1060,43,17,muted,TextAnchor.MiddleCenter);
         }
         void ShowHelp()
         {
-            if(rewardOpen)return;
+            if(busy||rewardOpen)return;
             var p=Modal("COMO JOGAR",530);
             Label(p,"1   Selecione uma das seis cartas e toque no alvo destacado.\n2   Você recebe 4 de energia e compra até 6 cartas por turno.\n3   Escudos duram até o próximo turno de quem os recebeu.\n4   Use cartas dos 3 aliados no turno: o Pacto concede +1 energia.\n5   Veja a próxima ação acima de cada inimigo e prepare sua defesa.\n6   EQUIPAMENTOS: troque habilidades antes da primeira ação ou use a forja.\n7   Derrote os 3 exilados. Cartas de aliados caídos saem do ciclo de compra.",40,88,1050,296,21,cream);
-            Label(p,"Marca: próximo ataque +10. Canalização: próximo ataque recebe o bônus indicado.\nFortificado: preserva escudo uma vez. Queima: 6/turno. Perfurante ignora escudo.\nVença 3 encontros; escolha uma recompensa entre eles. Instabilidade após rodada 12.",40,400,1050,100,17,gold);
+            Label(p,"Marca: próximo ataque +10. Canalização: próximo ataque recebe o bônus indicado.\nFortificado: preserva escudo uma vez. Queima: 6/turno. Perfurante ignora escudo.\n1 encontro → recompensa → chefe (120 de vida). Toque em um personagem para ver seus estados.",40,400,1050,100,17,gold);
         }
         void ConfirmReset()
         {if(busy||rewardOpen)return;var p=Modal("REINICIAR A JORNADA?",250);Label(p,"A jornada volta ao primeiro encontro. Seus equipamentos escolhidos serão mantidos.",35,80,1050,50,21,cream);ButtonAt(p,"REINICIAR",35,157,500,55,ResetBattle);ButtonAt(p,"CONTINUAR",560,157,535,55,ClearOverlay);}
@@ -311,18 +320,16 @@ namespace RunePact.Presentation
         }
         void ShowRewards()
         {
-            var p=Modal("VITÓRIA • ESCOLHA UMA RECOMPENSA",440);
+            var p=Modal("VITÓRIA • ESCOLHA UMA RECOMPENSA",690);
             rewardOpen=true;
             foreach(var button in p.GetComponentsInChildren<Button>())button.gameObject.SetActive(false);
-            Label(p,"Próximo: "+(journey.Encounter==2?"O REGENTE":"uma nova formação")+"\nTodos recuperam 35 de vida; equipamento, níveis e recompensas são mantidos.",35,85,1060,85,20,cream,TextAnchor.MiddleCenter);
+            var closeShadow=p.Find("× shadow");if(closeShadow!=null)closeShadow.gameObject.SetActive(false);
+            Label(p,"A SEGUIR: REGENTE DE ÂMBAR • 120 DE VIDA\nTodos recuperam 35 de vida. Escolha uma carta, um aprimoramento ou uma relíquia.",35,76,1060,65,19,cream,TextAnchor.MiddleCenter);
             var offers=journey.GetOffers();
             for(int i=0;i<3;i++){
                 int choice=i;
-                var card=Surface(p,"Reward "+i,35+i*365,180,330,190,panel);
-                Label(card,offers[i].Kind==RewardKind.Card?"CARTA":"RECOMPENSA",18,13,294,22,13,gold,TextAnchor.MiddleCenter,true);
-                Label(card,offers[i].Title,18,45,294,40,20,cream,TextAnchor.MiddleCenter,true);
-                Label(card,offers[i].Detail,23,92,284,52,16,muted,TextAnchor.MiddleCenter);
-                ButtonAt(card,"ESCOLHER",20,151,290,30,()=>{
+                var card=BuildRewardCard(p,offers[i],35+i*365,154);
+                ButtonAt(card,"ESCOLHER",20,399,290,48,()=>{
                     if(!journey.ChooseReward(choice))return;
                     rewardOpen=false;ClearOverlay();Match=journey.Current;selected=-1;notice="";SaveJourney();Refresh();
                 },new Color(.28f,.47f,.39f),15);
@@ -330,14 +337,14 @@ namespace RunePact.Presentation
         }
         void Update()
         {
-            if(Match==null)return;UpdateHint();
+            if(Match==null)return;UpdateHint();AnimateCharacters();FitSafeArea();if(menuOpen)return;
             if(Input.GetKeyDown(KeyCode.Escape)&&!rewardOpen){if(overlay!=null)ClearOverlay();else{selected=-1;Refresh();}}
             if(Input.GetKeyDown(KeyCode.P)&&!rewardOpen){if(paused)ClearOverlay();else ShowPause();}
             if(overlay!=null)return;
             for(int i=0;i<6;i++)if(Input.GetKeyDown(KeyCode.Alpha1+i))SelectCard(i);
             if(Input.GetKeyDown(KeyCode.Space))EndTurn();
         }
-        void SaveJourney(){if(journey!=null){PlayerPrefs.SetString("RunePactJourney",journey.Save());PlayerPrefs.Save();}}
+        void SaveJourney(){if(!reviewMode&&journey!=null&&(Match==null||Match.PlayerTurn||Match.Outcome!=0)){PlayerPrefs.SetString("RunePactJourneyV4",journey.Save());PlayerPrefs.Save();}}
         AudioClip Synth(float frequency,float duration)
         {
             int count=(int)(22050*duration);var data=new float[count];for(int i=0;i<count;i++){float t=i/22050f;data[i]=Mathf.Sin(t*frequency*Mathf.PI*2)*(1f-i/(float)count)*.09f;}

@@ -13,9 +13,9 @@ public static class PrototypeBuild
     [MenuItem("RunePact/Prepare scene and test")]
     public static void Prepare()
     {
-        foreach(var path in new[]{"Assets/Resources/Art/Warriors.png","Assets/Resources/Art/Arena.png"}) {
+        foreach(var path in new[]{"Assets/Resources/Art/Warriors.png","Assets/Resources/Art/Arena.png","Assets/Resources/Art/Regent-v1.png"}) {
             var importer=(TextureImporter)AssetImporter.GetAtPath(path);
-            importer.textureType=TextureImporterType.Default;importer.isReadable=path.Contains("Warriors");importer.filterMode=FilterMode.Point;importer.textureCompression=TextureImporterCompression.Uncompressed;importer.maxTextureSize=2048;importer.mipmapEnabled=false;importer.alphaSource=TextureImporterAlphaSource.FromInput;importer.SaveAndReimport();
+            importer.textureType=TextureImporterType.Default;importer.isReadable=!path.Contains("Arena");importer.filterMode=FilterMode.Point;importer.textureCompression=TextureImporterCompression.Uncompressed;importer.maxTextureSize=2048;importer.npotScale=TextureImporterNPOTScale.None;importer.mipmapEnabled=false;importer.alphaSource=TextureImporterAlphaSource.FromInput;importer.SaveAndReimport();
         }
         Directory.CreateDirectory("Assets/Scenes");
         var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
@@ -36,6 +36,14 @@ public static class PrototypeBuild
         var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions {scenes=new[]{"Assets/Scenes/Battle.unity"},locationPathName="Builds/Windows/RunePact.exe",target=BuildTarget.StandaloneWindows64,options=BuildOptions.None});
         if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Build failed: "+report.summary.result);
         Debug.Log("RUNEPACT_BUILD_SUCCESS "+report.summary.totalSize);
+    }
+    [MenuItem("RunePact/Build isolated visual review")]
+    public static void Review()
+    {
+        Prepare();Directory.CreateDirectory("Builds/Review");
+        var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions {scenes=new[]{"Assets/Scenes/Battle.unity"},locationPathName="Builds/Review/RunePactReview.exe",target=BuildTarget.StandaloneWindows64,options=BuildOptions.None,extraScriptingDefines=new[]{"RUNEPACT_REVIEW"}});
+        if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Review build failed: "+report.summary.result);
+        Debug.Log("RUNEPACT_REVIEW_BUILD_SUCCESS");
     }
     [MenuItem("RunePact/Test combat rules")]
     public static void Test()
@@ -71,17 +79,17 @@ public static class PrototypeBuild
         combo.BeginEnemy();combo.BeginPlayer();check(combo.Fighters[0].Shield==0,"fortified expires");
         var journey=new Journey(9);
         check(!journey.ChooseReward(0),"reward unavailable before victory");
-        for(int encounter=1;encounter<=3;encounter++){
+        for(int encounter=1;encounter<=2;encounter++){
             check(journey.Encounter==encounter,"journey encounter index");
             journey.Current.Fighters.Where(x=>x.Enemy).ToList().ForEach(x=>x.Hp=0);
             journey.Current.CheckOutcome();
-            if(encounter<3){
+            if(encounter<2){
                 journey.Current.Fighters[0].Hp=0;
                 journey.Current.Fighters[1].Tier=2;
                 check(!journey.ChooseReward(3),"invalid reward rejected");
                 check(journey.ChooseReward(1),"reward advances journey");
                 check(journey.Current.Fighters[0].Hp==35&&journey.Current.Fighters[1].Tier==2,"checkpoint recovery and upgrade persistence");
-                check(journey.CardBoost[(9+encounter)%3]>=6,"card upgrade reward persists");
+                check(journey.Current.SkillBoost[(9+encounter)%3*3]==6,"individual card upgrade reward persists");
             }
         }
         check(journey.Complete&&!journey.ChooseReward(0),"journey ends after boss");
@@ -94,7 +102,7 @@ public static class PrototypeBuild
         string snapshot=relicJourney.Save();Journey restored;check(Journey.TryRestore(snapshot,out restored)&&restored.Encounter==2&&restored.Relics.Count==1,"journey checkpoint restores");
         var grimoire=new Battle(13,null,1,EnemyFormation.Vanguard,new[]{Relic.LivingGrimoire});
         int mage=grimoire.Hand.FindIndex(x=>x.Owner==1);check(grimoire.GetCost(grimoire.Hand[mage])==0,"living grimoire discounts first mage card");
-        var boss=new Battle(14,null,3,EnemyFormation.Regent);boss.Fighters[3].Hp=130;boss.Plan();check(boss.BossPhase==2&&boss.Fighters[3].Shield==35,"regent phase two awakens");
+        var boss=new Battle(14,null,2,EnemyFormation.Regent);boss.Fighters[3].Hp=60;boss.Plan();check(boss.BossPhase==2&&boss.Fighters[3].Shield==12,"regent phase two awakens");
         var shieldwall=new Battle(15,null,1,EnemyFormation.Shieldwall);check(shieldwall.Fighters.Skip(3).Any(x=>x.Role==EnemyRole.Sentinel),"shieldwall formation");
         var pyre=new Battle(16,null,1,EnemyFormation.Pyre);check(pyre.Fighters.Skip(3).Count(x=>x.Role==EnemyRole.Pyromancer)==2,"pyre formation");
         // Bots com seed jogam partidas completas para cobrir reembaralhamento, eliminação, novo alvo da IA e término.
@@ -105,7 +113,7 @@ public static class PrototypeBuild
             while(sim.Outcome==0&&turns++<35) {
                 int moves=0;
                 while(sim.Outcome==0&&moves++<12) {
-                    int index=sim.Hand.FindIndex(x=>sim.Fighters[x.Owner].Alive&&sim.Describe(x).Cost<=sim.Energy);
+                    int index=sim.Hand.FindIndex(x=>sim.Fighters[x.Owner].Alive&&sim.GetCost(x)<=sim.Energy);
                     if(index<0)break;
                     var ability=sim.Describe(sim.Hand[index]);var target=sim.Fighters.Where(f=>f.Alive&&f.Enemy!=ability.Friendly).OrderBy(f=>ability.Friendly?(float)f.Hp/f.MaxHp:f.Hp).First();
                     check(sim.Play(index,target.Id,out _),"simulation legal action");
@@ -115,7 +123,8 @@ public static class PrototypeBuild
             check(sim.Outcome!=0,"simulation terminates");check(sim.Fighters.All(x=>x.Hp>=0&&x.Hp<=x.MaxHp&&x.Shield>=0),"resource bounds");
             if(sim.Outcome==1)wins++;else if(sim.Outcome==-1)losses++;else draws++;
         }
-        string result="PASS: "+count+" assertions; 80 seeded battles; wins="+wins+" losses="+losses+" draws="+draws;
+        PrototypeRegression.Run(check);
+        string result="PASS: "+count+" assertions; 80 seeded base battles + 45 varied journeys; base wins="+wins+" losses="+losses+" draws="+draws;
         File.WriteAllText("CombatTestResults.txt",result);Debug.Log("RUNEPACT_TESTS "+result);
     }
 }

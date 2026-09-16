@@ -18,6 +18,8 @@ O usuário aprovou o estilo atual dos assets de personagens. Preserve-o para tod
 
 ## Contrato técnico
 
+A interface de fantasia acolhedora também foi aprovada como direção a preservar: painéis arredondados e em relevo, pergaminho, dourado quente e verde-sálvia, sem linguagem futurista. O layout pode evoluir sem perder essa identidade. Veja `../VISUAL-DESIGN.md`.
+
 - Atlas atual: 1536×1024, 3 colunas × 2 linhas e células de 512×512.
 - A Unity usa filtragem Point e nenhum mipmap para essa arte.
 - O fundo magenta no atlas atual é um detalhe de chroma-key, não uma cor da paleta visual.
@@ -59,6 +61,8 @@ The user approved the current character asset style. Preserve it for all future 
 - Original designs only. Do not use recognizable characters, symbols, assets, or lore from other franchises.
 
 ## Technical contract
+
+The welcoming fantasy UI was also approved as a direction to preserve: rounded beveled panels, parchment, warm gold, and sage green, without futuristic styling. Layout may evolve without losing this identity. See `../VISUAL-DESIGN.md`.
 
 - Current source atlas: 1536×1024, 3 columns × 2 rows, and 512×512 cells.
 - Unity uses point filtering and no mipmaps for this artwork.
