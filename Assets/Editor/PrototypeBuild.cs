@@ -58,8 +58,8 @@ public static class PrototypeBuild
         var dead=new Battle(3);dead.Fighters[1].Hp=0;dead.BeginEnemy();dead.BeginPlayer();check(dead.Hand.All(x=>x.Owner!=1),"fallen unit cards excluded");
         dead.Fighters.Where(x=>x.Enemy).ToList().ForEach(x=>x.Hp=0);dead.CheckOutcome();check(dead.Outcome==1,"victory");
         var lose=new Battle(5);lose.Fighters.Where(x=>!x.Enemy).ToList().ForEach(x=>x.Hp=0);lose.CheckOutcome();check(lose.Outcome==-1,"defeat");
-        // Seeded bots play whole matches to cover reshuffling, elimination, AI retarget and termination.
         // Bots com seed jogam partidas completas para cobrir reembaralhamento, eliminação, novo alvo da IA e término.
+        // Seeded bots play whole matches to cover reshuffling, elimination, AI retarget and termination.
         int wins=0, losses=0,draws=0;
         for(int seed=0;seed<80;seed++) {
             var sim=new Battle(seed,new[]{seed%2,(seed/2)%2,(seed/4)%2});int turns=0;

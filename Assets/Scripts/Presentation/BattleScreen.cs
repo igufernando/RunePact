@@ -38,8 +38,8 @@ namespace RunePact.Presentation
             Texture2D source=Resources.Load<Texture2D>("Art/Warriors");
             var tex=new Texture2D(source.width,source.height,TextureFormat.RGBA32,false);
             var pixels=source.GetPixels32();
-            // Non-destructive runtime chroma-key import; generated source atlas remains intact.
             // Importação de chroma-key em tempo de execução sem alteração; o atlas-fonte gerado permanece intacto.
+            // Non-destructive runtime chroma-key import; generated source atlas remains intact.
             for(int i=0;i<pixels.Length;i++) {var c=pixels[i];if(c.r>160&&c.b>145&&c.g<115&&Math.Min(c.r,c.b)-c.g>85)c.a=0;pixels[i]=c;}
             tex.SetPixels32(pixels);tex.Apply();tex.filterMode=FilterMode.Point;tex.wrapMode=TextureWrapMode.Clamp;
             int w=tex.width/3,h=tex.height/2;
@@ -142,8 +142,8 @@ namespace RunePact.Presentation
                 outlines[i].color=valid?gold:Color.clear;
                 var intent=Match.Intents.FirstOrDefault(x=>x.Owner==i);
                 intentTexts[i].text=!f.Alive?"":i<3?Match.GearName(i)+"  I"+new string('I',f.Tier):intent==null?"":intent.Label+" "+intent.Power+" → "+(intent.Effect==Effect.Volley?"todos":Match.Fighters[intent.Target].Name);
-                // Back-row units share a column: place their caption below, not over the upper unit's vitals.
                 // Unidades da fileira traseira compartilham uma coluna: legenda abaixo, sem cobrir os atributos da unidade superior.
+                // Back-row units share a column: place their caption below, not over the upper unit's vitals.
                 if(i==2||i==5) {
                     if(f.Alive)statuses[i].text=(statuses[i].text.Length>0?statuses[i].text+" • ":"")+intentTexts[i].text;
                     intentTexts[i].text="";

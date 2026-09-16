@@ -1,9 +1,9 @@
-# Text files are normalized to LF for consistent diffs across platforms.
 # Arquivos de texto usam LF para diffs consistentes entre plataformas.
+# Text files are normalized to LF for consistent diffs across platforms.
 * text=auto eol=lf
 
-# Unity scenes and settings remain text-mergeable.
 # Cenas e configurações Unity permanecem mescláveis como texto.
+# Unity scenes and settings remain text-mergeable.
 *.unity text eol=lf
 *.meta text eol=lf
 *.asset text eol=lf
@@ -11,6 +11,6 @@
 *.md text eol=lf
 *.json text eol=lf
 
-# Generated game art is binary.
 # Arte gerada do jogo é binária.
+# Generated game art is binary.
 *.png binary

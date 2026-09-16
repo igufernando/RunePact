@@ -41,7 +41,9 @@ namespace RunePact.Core
         readonly Random random;
         public int Round=1, Energy=4, Shards=3, Played, TotalPlayed, CardsPlayed;
         public bool PlayerTurn=true, HarmonyUsed;
-        public int Outcome; // 0 ongoing, 1 victory, -1 defeat, 2 draw / 0 em andamento, 1 vitória, -1 derrota, 2 empate
+        // 0 em andamento, 1 vitória, -1 derrota, 2 empate.
+        // 0 ongoing, 1 victory, -1 defeat, 2 draw.
+        public int Outcome;
         public int Harmony => contributors.Count;
         public Battle(int seed=0, int[] gear=null)
         {
@@ -57,8 +59,8 @@ namespace RunePact.Core
                 for(int copy=0;copy<2;copy++) for(int slot=0;slot<3;slot++) Deck.Add(new Card(i,slot));
             }
             Shuffle();
-            // First hand teaches all three roles and equipment; later hands use the shuffled deck.
             // A primeira mão ensina os três papéis e equipamentos; mãos posteriores usam o baralho embaralhado.
+            // First hand teaches all three roles and equipment; later hands use the shuffled deck.
             for(int i=0;i<3;i++) foreach(int slot in new[]{0,2}) { var c=Deck.First(x=>x.Owner==i&&x.Slot==slot); Deck.Remove(c); Hand.Add(c); }
             Plan(); Say("Santuário do Crepúsculo • escolha uma carta e depois um alvo.");
         }
@@ -166,16 +168,16 @@ namespace RunePact.Core
             if(PlayerTurn||Outcome!=0)return;
             Round++;PlayerTurn=true;Energy=4;Shards++;Played=0;contributors.Clear();HarmonyUsed=false;
             Tick(false);
-            // Own pacing rule: fatigue, not Axie's Blood Moon. Symmetric true damage after round 12.
             // Regra própria de ritmo: fadiga, não a Blood Moon de Axie. Dano verdadeiro simétrico após a rodada 12.
+            // Own pacing rule: fatigue, not Axie's Blood Moon. Symmetric true damage after round 12.
             if(Round>12){int pressure=(Round-12)*5;foreach(var f in Fighters)Damage(f,pressure,true);Say("Instabilidade do santuário: "+pressure+" de dano a todos.");}
             CheckOutcome();if(Outcome!=0)return;
             for(int i=0;i<6;i++)Draw();Plan();
         }
         void Draw()
         {
-            // Cards belonging to fallen warriors leave circulation, avoiding dead-hand soft locks.
             // Cartas de guerreiros derrotados saem da circulação, evitando mãos sem opções úteis.
+            // Cards belonging to fallen warriors leave circulation, avoiding dead-hand soft locks.
             Deck.RemoveAll(c=>!Fighters[c.Owner].Alive);Discard.RemoveAll(c=>!Fighters[c.Owner].Alive);
             if(Deck.Count==0){Deck.AddRange(Discard);Discard.Clear();Shuffle();}
             if(Deck.Count==0)return;var c=Deck[0];Deck.RemoveAt(0);Hand.Add(c);

@@ -1,4 +1,5 @@
-# Unity generated folders / Pastas geradas pela Unity
+# Pastas geradas pela Unity
+# Unity generated folders
 /[Ll]ibrary/
 /[Tt]emp/
 /[Oo]bj/
@@ -7,7 +8,8 @@
 /[Mm]emoryCaptures/
 /[Rr]ecordings/
 
-# Build artifacts / Artefatos de build
+# Artefatos de build
+# Build artifacts
 /Builds/
 /Build/
 /Builds-*/
@@ -15,7 +17,8 @@
 *.aab
 *.unitypackage
 
-# IDE and local tooling / IDE e ferramentas locais
+# IDE e ferramentas locais
+# IDE and local tooling
 .vs/
 .vscode/
 .idea/
@@ -29,13 +32,15 @@
 *.svd
 *.pdb
 
-# Generated reports and operating system files / Relatórios gerados e arquivos do sistema
+# Relatórios gerados e arquivos do sistema
+# Generated reports and operating system files
 CombatTestResults.txt
 sysinfo.txt
 .DS_Store
 Thumbs.db
 Desktop.ini
 
-# Keep Unity metadata tracked / Manter metadados da Unity versionados
+# Manter metadados da Unity versionados
+# Keep Unity metadata tracked
 !/[Aa]ssets/**/*.meta
 !/[Pp]ackages/packages-lock.json
