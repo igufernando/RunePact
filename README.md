@@ -12,6 +12,10 @@ O idioma atual para jogadores é somente português brasileiro.
 
 ### Recursos do protótipo
 
+Consulte a [evolução de gameplay](Docs/GAMEPLAY-V2.md) para a jornada de três encontros, recompensas, papéis e efeitos.
+
+A [direção da interface e dos efeitos](Docs/VISUAL-DESIGN.md) descreve a HUD de fantasia, as cartas em pergaminho e a apresentação do combate.
+
 - Batalha 3 contra 3 com intenções inimigas visíveis.
 - Baralho compartilhado, energia, escudo, cura, queimadura, dano em área e dano perfurante.
 - Duas escolhas de equipamento por aliado e três níveis de melhoria durante a partida.
@@ -60,6 +64,10 @@ This repository is the canonical source for local development. The current miles
 The current player-facing language is Brazilian Portuguese only.
 
 ### Prototype features
+
+See [gameplay evolution](Docs/GAMEPLAY-V2.md) for the three-encounter journey, rewards, roles, and effects.
+
+The [interface and effects direction](Docs/VISUAL-DESIGN.md) describes the fantasy HUD, parchment cards, and combat presentation.
 
 - 3v3 battle with visible enemy intentions.
 - Shared deck, energy, shield, healing, burn, area damage, and piercing damage.

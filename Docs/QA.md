@@ -1,5 +1,11 @@
 # QA do protótipo (PT-BR)
 
+## Rodada de evolução
+
+A rodada visual mantém os personagens aprovados, reorganiza o campo e renova cartas, HUD e arsenal. Foram conferidos seleção de alvos, impacto de marca, proteção de equipe, cura efetiva, transição de turno e arsenal no executável Windows. As regras continuam passando em 2.511 verificações. A validação visual foi feita em desktop; testes de toque em aparelho ainda estão pendentes.
+
+A evolução passou em 2.511 verificações e 80 batalhas simuladas. Os testes adicionais cobrem marca, canalização, duração de Fortificado, cura do Acólito, bloqueio de recompensa fora de vitória, recuperação de caídos, persistência de melhorias e término da jornada. O build Windows foi gerado com sucesso. A seleção e aplicação da Marca Rúnica foram conferidas na interface; o balanceamento da jornada ainda precisa de playtests humanos.
+
 ## Verificações automatizadas de combate
 
 O protótipo inicial passou em **2.608 verificações** distribuídas por **80 batalhas simuladas com seeds**: 79 vitórias e 1 derrota para o bot simples de teste. Isso valida o comportamento das regras e o término das partidas, não o balanceamento ou diversão para jogadores.
@@ -25,6 +31,12 @@ O build inicial para Windows foi verificado para a cena de batalha, seis sprites
 ---
 
 # Prototype QA (EN)
+
+## Evolution milestone
+
+The visual milestone preserves the approved characters, rearranges the field, and refreshes cards, HUD, and equipment panels. Target selection, mark impact, team protection, actual healing, turn transitions, and equipment UI were checked in the Windows executable. Rules still pass 2,511 assertions. Visual validation was on desktop; device touch testing remains pending.
+
+The evolution passed 2,511 assertions and 80 simulated battles. Additional tests cover mark, channel, Fortified duration, Acolyte healing, reward gating, fallen ally recovery, upgrade persistence, and journey completion. The Windows build succeeded. Runic mark selection and application were checked in the UI; journey balance still requires human playtests.
 
 ## Automated combat checks
 

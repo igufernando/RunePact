@@ -9,19 +9,22 @@ using RunePact.Core;
 
 namespace RunePact.Presentation
 {
-    public sealed class BattleScreen : MonoBehaviour
+    public sealed partial class BattleScreen : MonoBehaviour
     {
         public Battle Match {get;private set;}
-        readonly Color ink=new Color(.035f,.055f,.075f,.97f), panel=new Color(.075f,.105f,.135f,.97f);
-        readonly Color gold=new Color(.89f,.72f,.39f), cream=new Color(.95f,.92f,.82f), muted=new Color(.60f,.70f,.72f);
-        readonly Color teal=new Color(.25f,.82f,.73f), red=new Color(.96f,.43f,.39f);
+        Journey journey;
+        bool rewardOpen;
+        readonly Color ink=new Color(.13f,.17f,.18f,1), panel=new Color(.22f,.28f,.28f,1);
+        readonly Color gold=new Color(.94f,.76f,.44f), cream=new Color(1f,.94f,.81f), muted=new Color(.74f,.80f,.73f);
+        readonly Color teal=new Color(.47f,.84f,.69f), red=new Color(.96f,.57f,.47f);
+        readonly Color parchment=new Color(.96f,.89f,.73f), writing=new Color(.23f,.21f,.20f), violet=new Color(.72f,.58f,.92f);
         Font font; RectTransform root, handRoot, overlay, fxRoot;
         Text roundLabel, energyLabel, hint, deckLabel, pactLabel, shardLabel, logLabel, turnLabel;
         Button endButton; Text endText;
         readonly RectTransform[] units=new RectTransform[6];
         readonly Image[] portraits=new Image[6],hpBars=new Image[6], outlines=new Image[6];
         readonly Text[] hpTexts=new Text[6],statuses=new Text[6],intentTexts=new Text[6];
-        readonly Vector2[] positions={new Vector2(440,292),new Vector2(156,165),new Vector2(186,374),new Vector2(946,292),new Vector2(1240,165),new Vector2(1210,374)};
+        readonly Vector2[] positions={new Vector2(500,285),new Vector2(80,190),new Vector2(290,315),new Vector2(880,285),new Vector2(1300,190),new Vector2(1090,315)};
         readonly Sprite[] sprites=new Sprite[6];
         int selected=-1,seed=7241; bool busy, mutedAudio;
         float noticeUntil; string notice="";
@@ -31,7 +34,7 @@ namespace RunePact.Presentation
         {
             Active=this; Application.targetFrameRate=60;
             font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
-            LoadSprites(); BuildScreen(); ResetBattle();
+            FantasySkin.Initialize();LoadSprites(); BuildScreen(); ResetBattle();
         }
         void LoadSprites()
         {
@@ -59,10 +62,11 @@ namespace RunePact.Presentation
         {var r=Box(p,"Sprite",x,y,w,h);var im=r.gameObject.AddComponent<Image>();im.sprite=sprite;im.preserveAspect=true;im.raycastTarget=false;return im;}
         Button ButtonAt(Transform p,string label,float x,float y,float w,float h,Action action,Color? bg=null,int size=19)
         {
-            var r=Box(p,label,x,y,w,h,bg??panel);var image=r.GetComponent<Image>();image.raycastTarget=true;
+            var r=Surface(p,label,x,y,w,h,bg??panel);var image=r.GetComponent<Image>();image.raycastTarget=true;
             var b=r.gameObject.AddComponent<Button>();b.targetGraphic=image;var c=b.colors;c.normalColor=Color.white;c.highlightedColor=new Color(1.2f,1.2f,1.15f);c.pressedColor=new Color(.7f,.8f,.8f);c.disabledColor=new Color(.45f,.45f,.45f);b.colors=c;
             var nav=b.navigation;nav.mode=Navigation.Mode.None;b.navigation=nav;
-            b.onClick.AddListener(()=>{Tone(clickSound);action();});Label(r,label,6,0,w-12,h,size,cream,TextAnchor.MiddleCenter,true);return b;
+            r.gameObject.AddComponent<FriendlyMotion>();
+            b.onClick.AddListener(()=>{Tone(clickSound);action();});Label(r,label,6,0,w-12,h-3,size,cream,TextAnchor.MiddleCenter,true);return b;
         }
         void Border(RectTransform r,Color c,int thickness=2)
         {var o=r.gameObject.AddComponent<Outline>();o.effectColor=c;o.effectDistance=new Vector2(thickness,-thickness);o.useGraphicAlpha=false;}
@@ -73,105 +77,114 @@ namespace RunePact.Presentation
             var scaler=cg.GetComponent<CanvasScaler>();scaler.uiScaleMode=CanvasScaler.ScaleMode.ScaleWithScreenSize;scaler.referenceResolution=new Vector2(1600,900);scaler.screenMatchMode=CanvasScaler.ScreenMatchMode.Expand;
             var outer=cg.transform as RectTransform;
             root=Box(outer,"Landscape safe gameplay",0,0,1600,900,ink);root.anchorMin=root.anchorMax=new Vector2(.5f,.5f);root.pivot=new Vector2(.5f,.5f);root.anchoredPosition=Vector2.zero;
-            var bg=Box(root,"Sanctuary",0,70,1600,550);var raw=bg.gameObject.AddComponent<RawImage>();raw.texture=Resources.Load<Texture2D>("Art/Arena");raw.uvRect=new Rect(0,.12f,1,.86f);raw.raycastTarget=false;
-            Box(root,"Upper shade",0,75,1600,64,new Color(.025f,.045f,.07f,.6f));
-            Box(root,"Header",0,0,1600,76,ink);Box(root,"Gold edge",0,74,1600,2,gold*.7f);
-            Label(root,"R U N E P A C T",28,8,350,37,27,gold,TextAnchor.MiddleLeft,true);
-            Label(root,"SANTUÁRIO DO CREPÚSCULO  /  PROTÓTIPO",30,44,440,22,12,muted);
-            roundLabel=Label(root,"",525,12,235,27,22,cream,TextAnchor.MiddleCenter,true);
-            turnLabel=Label(root,"",525,41,235,23,14,teal,TextAnchor.MiddleCenter);
-            shardLabel=Label(root,"",800,22,190,35,17,gold);
-            ButtonAt(root,"EQUIPAMENTOS",1000,17,215,43,()=>ShowGear(),panel,16);
-            ButtonAt(root,"?",1230,17,46,43,ShowHelp,panel,21);
-            ButtonAt(root,"SOM",1290,17,80,43,()=>{mutedAudio=!mutedAudio;Notify(mutedAudio?"Som desativado.":"Som ativado.");},panel,15);
-            ButtonAt(root,"REINICIAR",1385,17,185,43,ConfirmReset,panel,15);
-            Label(root,"SEU PACTO",32,86,280,25,14,teal,TextAnchor.MiddleLeft,true);
-            Label(root,"OS EXILADOS  •  INTENÇÕES VISÍVEIS",1110,86,460,25,14,red,TextAnchor.MiddleRight,true);
-            for(int i=0;i<6;i++) BuildUnit(i);
+            var bg=Box(root,"Sanctuary",0,0,1600,700);var raw=bg.gameObject.AddComponent<RawImage>();raw.texture=Resources.Load<Texture2D>("Art/Arena");raw.uvRect=new Rect(0,.10f,1,.87f);raw.raycastTarget=false;
+            Box(root,"Atmosphere",0,0,1600,640,new Color(.17f,.22f,.20f,.10f));
+            var brand=Surface(root,"Adventure title",20,14,360,72,ink);
+            Label(brand,"R U N E P A C T",22,7,325,34,27,gold,TextAnchor.MiddleLeft,true);
+            Label(brand,"Santuário do Crepúsculo",23,42,320,22,15,muted);
+            var progress=Surface(root,"Journey",530,14,335,72,ink);
+            roundLabel=Label(progress,"",12,9,311,27,21,cream,TextAnchor.MiddleCenter,true);
+            turnLabel=Label(progress,"",12,39,311,22,14,teal,TextAnchor.MiddleCenter);
+            var resources=Surface(root,"Shards",886,26,170,49,panel);
+            shardLabel=Label(resources,"",8,0,154,47,17,gold,TextAnchor.MiddleCenter,true);
+            ButtonAt(root,"Arsenal",1074,26,151,49,ShowGear,panel,18);
+            ButtonAt(root,"?",1240,26,48,49,ShowHelp,panel,22);
+            ButtonAt(root,"Som",1302,26,87,49,()=>{mutedAudio=!mutedAudio;Notify(mutedAudio?"Som desativado.":"Som ativado.");},panel,16);
+            ButtonAt(root,"Reiniciar",1404,26,174,49,ConfirmReset,panel,17);
+            Pill(root,"Seu pacto",28,106,147,31,teal);
+            Pill(root,"Os exilados",1402,106,170,31,red);
+            foreach(int id in new[]{1,4,0,3,2,5})BuildUnit(id);
             fxRoot=Box(root,"Effects",0,0,1600,900);
-            Box(root,"Hand area",0,618,1600,282,ink);Box(root,"Hand line",0,618,1600,2,gold*.7f);
-            hint=Label(root,"",195,623,1190,28,17,cream,TextAnchor.MiddleCenter);
-            energyLabel=Label(root,"",22,659,148,65,43,gold,TextAnchor.MiddleCenter,true);
-            Label(root,"ENERGIA",22,723,148,21,13,muted,TextAnchor.MiddleCenter,true);
-            pactLabel=Label(root,"",14,762,165,38,15,teal,TextAnchor.MiddleCenter);
-            deckLabel=Label(root,"",14,813,165,62,13,muted,TextAnchor.MiddleCenter);
-            handRoot=Box(root,"Cards",185,660,1200,210);
-            endButton=ButtonAt(root,"ENCERRAR\nTURNO",1398,681,174,93,()=>EndTurn(),new Color(.16f,.35f,.35f),21);Border((RectTransform)endButton.transform,teal,1);endText=endButton.GetComponentInChildren<Text>();
-            Label(root,"ESPAÇO / TOQUE",1398,779,174,22,12,muted,TextAnchor.MiddleCenter);
-            logLabel=Label(root,"",1390,811,195,74,12,muted,TextAnchor.UpperLeft);
-            Label(root,"1–6  selecionar carta     •     clique/toque no alvo     •     Esc  cancelar",185,875,1100,20,12,muted,TextAnchor.MiddleCenter);
+            Surface(root,"Hand tray",16,640,1568,247,ink);
+            var hintPlate=Surface(root,"Guidance",310,593,980,39,new Color(.18f,.23f,.23f));
+            hint=Label(hintPlate,"",12,0,956,37,16,cream,TextAnchor.MiddleCenter);
+            Orb(root,FantasySkin.Circle,59,660,104,104,new Color(.18f,.29f,.33f));
+            Orb(root,FantasySkin.Ring,61,662,100,100,gold);
+            energyLabel=Label(root,"",64,675,94,50,34,cream,TextAnchor.MiddleCenter,true);
+            Label(root,"ENERGIA",66,723,91,19,12,gold,TextAnchor.MiddleCenter,true);
+            pactLabel=Label(root,"",28,770,169,46,14,teal,TextAnchor.MiddleCenter);
+            deckLabel=Label(root,"",28,827,169,40,13,muted,TextAnchor.MiddleCenter);
+            handRoot=Box(root,"Cards",220,653,1140,222);
+            endButton=ButtonAt(root,"Encerrar\nturno",1390,673,172,84,()=>EndTurn(),new Color(.28f,.47f,.39f),22);endText=endButton.GetComponentInChildren<Text>();
+            Label(root,"ESPAÇO ou toque",1390,772,172,20,12,muted,TextAnchor.MiddleCenter);
+            logLabel=Label(root,"",1390,803,172,67,12,muted,TextAnchor.UpperLeft);
+            Label(root,"1–6  escolher carta    •    toque no alvo    •    Esc  cancelar",370,880,860,18,11,muted,TextAnchor.MiddleCenter);
             var ev=new GameObject("Input",typeof(EventSystem),typeof(StandaloneInputModule));
             sound=gameObject.AddComponent<AudioSource>();attackSound=Synth(160,.12f);guardSound=Synth(480,.18f);clickSound=Synth(720,.035f);
         }
         void BuildUnit(int id)
         {
             var r=Box(root,"Fighter "+id,positions[id].x,positions[id].y,220,210);units[id]=r;
-            var shadow=Box(r,"Ground shadow",30,159,162,14,new Color(0,0,0,.32f));
+            Orb(r,FantasySkin.Circle,30,152,166,27,new Color(.08f,.13f,.12f,.38f));
             portraits[id]=Picture(r,sprites[id],8,-15,204,188);
             if(id>=3) {portraits[id].rectTransform.localScale=new Vector3(-1,1,1);portraits[id].rectTransform.anchoredPosition=new Vector2(212,15);}
-            var marker=Box(r,"Target line",28,167,166,3,Color.clear);outlines[id]=marker.GetComponent<Image>();
+            outlines[id]=Orb(r,FantasySkin.Ring,20,142,185,46,Color.clear);
             var hit=Box(r,"Select target",0,-25,220,222,Color.clear);hit.GetComponent<Image>().raycastTarget=true;
             var btn=hit.gameObject.AddComponent<Button>();btn.targetGraphic=hit.GetComponent<Image>();int n=id;btn.onClick.AddListener(()=>ClickUnit(n));
-            var plate=Box(r,"Vitals",20,178,180,43,new Color(.035f,.06f,.085f,.92f));
-            hpTexts[id]=Label(plate,"",8,0,164,22,13,cream,TextAnchor.MiddleCenter,true);
-            Box(plate,"Empty health",8,26,164,7,new Color(.20f,.16f,.18f));hpBars[id]=Box(plate,"Health",8,26,164,7,id<3?teal:red).GetComponent<Image>();
-            statuses[id]=Label(r,"",-15,223,250,23,13,gold,TextAnchor.MiddleCenter,true);
-            intentTexts[id]=Label(r,"",-38,-50,294,25,13,id<3?muted:cream,TextAnchor.MiddleCenter,true);
+            var plate=Surface(r,"Vitals",8,179,204,46,ink);
+            hpTexts[id]=Label(plate,"",10,2,184,22,13,cream,TextAnchor.MiddleCenter,true);
+            hpTexts[id].resizeTextForBestFit=true;hpTexts[id].resizeTextMinSize=10;hpTexts[id].resizeTextMaxSize=13;
+            Round(plate,"Empty health",10,29,184,9,new Color(.08f,.12f,.12f));hpBars[id]=Round(plate,"Health",10,29,184,9,id<3?teal:red).GetComponent<Image>();
+            statuses[id]=Label(r,"",-12,230,244,37,12,gold,TextAnchor.UpperCenter,true);
+            var intentPlate=Surface(r,"Intention",-16,-44,252,39,id<3?new Color(.23f,.32f,.29f):new Color(.34f,.25f,.25f));
+            intentTexts[id]=Label(intentPlate,"",8,2,236,33,13,cream,TextAnchor.MiddleCenter,true);
         }
         void ResetBattle()
         {
             StopAllCoroutines();busy=false;selected=-1;ClearOverlay();
-            int[] load=Match==null?null:Match.Fighters.Take(3).Select(f=>f.Gear).ToArray();Match=new Battle(seed++,load);
+            foreach(Transform effect in fxRoot)Destroy(effect.gameObject);
+            rewardOpen=false;
+            int[] load=Match==null?null:Match.Fighters.Take(3).Select(f=>f.Gear).ToArray();journey=new Journey(seed++,load);Match=journey.Current;
             for(int i=0;i<6;i++)units[i].anchoredPosition=new Vector2(positions[i].x,-positions[i].y);
             notice="";Refresh();
         }
         void Refresh()
         {
-            roundLabel.text="RODADA "+Match.Round.ToString("00");turnLabel.text=Match.Outcome!=0?"BATALHA CONCLUÍDA":busy?"TURNO DOS EXILADOS":"SEU TURNO";turnLabel.color=busy?red:teal;
+            roundLabel.text="Encontro "+journey.Encounter+" de 3  •  Rodada "+Match.Round;turnLabel.text=Match.Outcome!=0?"BATALHA CONCLUÍDA":busy?(Match.PlayerTurn?"CONJURANDO…":"TURNO DOS EXILADOS"):"SEU TURNO";turnLabel.color=!Match.PlayerTurn?red:teal;
             energyLabel.text=Match.Energy+" / 4";shardLabel.text="◆  "+Match.Shards+" fragmentos";
             pactLabel.text="PACTO  "+Match.Harmony+" / 3\n"+(Match.HarmonyUsed?"+1 energia ativada":"3 guerreiros = +1 energia");
             deckLabel.text="BARALHO  "+Match.Deck.Count+"\nDESCARTE  "+Match.Discard.Count;
-            endButton.interactable=!busy&&Match.Outcome==0;endText.text=busy?"AGUARDE…":"ENCERRAR\nTURNO";
+            endButton.interactable=!busy&&Match.Outcome==0;endText.text=busy?"Aguarde…":"Encerrar\nturno";
             logLabel.text=string.Join("\n",Match.Log.Skip(Math.Max(0,Match.Log.Count-2)));
             for(int i=0;i<6;i++) {
                 var f=Match.Fighters[i];hpTexts[i].text=f.Name+"   "+f.Hp+" / "+f.MaxHp;
-                hpBars[i].rectTransform.sizeDelta=new Vector2(164f*f.Hp/f.MaxHp,7);
+                hpBars[i].rectTransform.sizeDelta=new Vector2(184f*f.Hp/f.MaxHp,9);
                 portraits[i].color=f.Alive?Color.white:new Color(.3f,.35f,.4f,.35f);
                 statuses[i].text=!f.Alive?"DERROTADO":(f.Shield>0?"ESCUDO "+f.Shield+"  ":"")+(f.Burn>0?"QUEIMA "+f.Burn+"t":"");
+                if(f.Alive)statuses[i].text+=(f.Mark>0?" • MARCA":"")+(f.Fortified>0?" • FIRME":"")+(f.Channel>0?" • CANAL +"+f.Channel:"");
+                statuses[i].fontSize=11;
                 bool valid=selected>=0&&selected<Match.Hand.Count&&Match.CanTarget(Match.Hand[selected],i);
                 outlines[i].color=valid?gold:Color.clear;
                 var intent=Match.Intents.FirstOrDefault(x=>x.Owner==i);
                 intentTexts[i].text=!f.Alive?"":i<3?Match.GearName(i)+"  I"+new string('I',f.Tier):intent==null?"":intent.Label+" "+intent.Power+" → "+(intent.Effect==Effect.Volley?"todos":Match.Fighters[intent.Target].Name);
-                // Unidades da fileira traseira compartilham uma coluna: legenda abaixo, sem cobrir os atributos da unidade superior.
-                // Back-row units share a column: place their caption below, not over the upper unit's vitals.
-                if(i==2||i==5) {
-                    if(f.Alive)statuses[i].text=(statuses[i].text.Length>0?statuses[i].text+" • ":"")+intentTexts[i].text;
-                    intentTexts[i].text="";
-                    statuses[i].rectTransform.sizeDelta=new Vector2(340,23);
-                    statuses[i].rectTransform.anchoredPosition=new Vector2(-60,-223);
-                    statuses[i].fontSize=12;
-                }
             }
             RebuildHand();UpdateHint();
         }
         void RebuildHand()
         {
-            foreach(Transform child in handRoot)Destroy(child.gameObject);
+            foreach(Transform child in handRoot){child.gameObject.SetActive(false);Destroy(child.gameObject);}
             for(int i=0;i<Match.Hand.Count;i++) {
                 int n=i;var c=Match.Hand[i];var a=Match.Describe(c);var f=Match.Fighters[c.Owner];
                 bool can=!busy&&f.Alive&&Match.Energy>=a.Cost&&Match.Outcome==0;
-                Color tint=c.Owner==0?new Color(.18f,.43f,.43f):c.Owner==1?new Color(.37f,.30f,.49f):new Color(.47f,.31f,.22f);
-                var r=Box(handRoot,"Card "+i,i*198,selected==i?-9:0,188,209,panel);Border(r,selected==i?gold:can?tint:new Color(.18f,.2f,.23f),selected==i?3:1);
-                Box(r,"Art background",3,3,182,64,new Color(tint.r*.5f,tint.g*.5f,tint.b*.5f));
-                Picture(r,sprites[c.Owner],60,-1,70,70);
-                Label(r,(i+1).ToString(),155,8,22,22,12,muted,TextAnchor.MiddleCenter);
-                Box(r,"Cost",7,7,31,31,tint);Label(r,a.Cost.ToString(),7,7,31,31,22,cream,TextAnchor.MiddleCenter,true);
-                Label(r,a.Name,9,71,170,26,18,cream,TextAnchor.MiddleCenter,true);
-                Label(r,a.Source+(c.Slot==2?" • N"+(f.Tier+1):""),8,99,172,22,11,gold,TextAnchor.MiddleCenter);
-                Label(r,a.Description,12,126,164,56,14,cream,TextAnchor.UpperLeft);
-                Label(r,f.Name+"  /  "+(a.Friendly?"SUPORTE":"ATAQUE"),10,184,168,20,11,can?muted:new Color(.9f,.4f,.4f),TextAnchor.MiddleCenter,true);
+                Color tint=c.Owner==0?new Color(.26f,.47f,.43f):c.Owner==1?new Color(.45f,.35f,.54f):new Color(.57f,.38f,.25f);
+                var r=Surface(handRoot,"Card "+i,i*190,selected==i?-18:0,180,220,selected==i?new Color(1f,.95f,.78f):parchment);
+                if(selected==i)Border(r,gold,3);
+                Round(r,"Illustration",6,6,168,76,tint);
+                Orb(r,FantasySkin.Ring,61,11,63,63,new Color(1,1,1,.13f));
+                Picture(r,sprites[c.Owner],51,-1,85,85);
+                Orb(r,FantasySkin.Circle,8,8,39,39,gold);
+                Orb(r,FantasySkin.Circle,11,10,33,33,tint);
+                Label(r,a.Cost.ToString(),12,11,30,29,22,cream,TextAnchor.MiddleCenter,true);
+                Label(r,(i+1).ToString(),150,12,20,20,12,cream,TextAnchor.MiddleCenter);
+                var name=Label(r,a.Name,7,86,166,25,18,writing,TextAnchor.MiddleCenter,true);
+                name.resizeTextForBestFit=true;name.resizeTextMinSize=14;name.resizeTextMaxSize=18;
+                Label(r,a.Source+(c.Slot==2?" • N"+(f.Tier+1):""),8,111,164,19,11,tint,TextAnchor.MiddleCenter);
+                Label(r,a.Description,12,136,156,59,13,writing,TextAnchor.UpperLeft);
+                Round(r,"Role ribbon",7,197,166,17,tint);
+                Label(r,f.Name+" • "+(a.Friendly?"SUPORTE":"ATAQUE"),7,196,166,18,10,cream,TextAnchor.MiddleCenter,true);
                 var img=r.GetComponent<Image>();img.raycastTarget=true;var b=r.gameObject.AddComponent<Button>();b.targetGraphic=img;b.onClick.AddListener(()=>SelectCard(n));
-                if(!can)Box(r,"Unavailable",0,0,188,209,new Color(.02f,.03f,.04f,.40f));
+                b.interactable=can;r.gameObject.AddComponent<FriendlyMotion>().Lift=9;
+                if(!can)Round(r,"Unavailable",0,0,180,220,new Color(.20f,.22f,.22f,.42f));
             }
         }
         public void SelectCard(int index)
@@ -187,55 +200,76 @@ namespace RunePact.Presentation
             if(selected<0){Notify(Match.Fighters[id].Name+" • selecione primeiro uma carta na mão.");return;}
             var card=Match.Hand[selected];var a=Match.Describe(card);int owner=card.Owner;
             var before=Match.Fighters.Select(f=>f.Hp).ToArray();
+            var shields=Match.Fighters.Select(f=>f.Shield).ToArray();
             if(!Match.Play(selected,id,out var error)){Notify(error);return;}
-            selected=-1;Refresh();Tone(a.Friendly?guardSound:attackSound);
-            StartCoroutine(ActionAnimation(owner,id,a.Friendly,before,a.Power));
-            if(Match.Outcome!=0)StartCoroutine(ResultAfter());
+            selected=-1;StartCoroutine(PlayerAction(owner,id,a,before,shields));
         }
-        IEnumerator ActionAnimation(int owner,int target,bool friendly,int[] before,int power)
+        IEnumerator PlayerAction(int owner,int target,Ability ability,int[] before,int[] shields)
         {
-            var point=positions[target]+new Vector2(100,85);var start=positions[owner]+new Vector2(100,85);
-            var mote=Box(fxRoot,"Spell",start.x,start.y,12,12,friendly?teal:gold);
-            float t=0;while(t<.23f){t+=Time.deltaTime;var p=Vector2.Lerp(start,point,t/.23f);mote.anchoredPosition=new Vector2(p.x,-p.y);yield return null;}Destroy(mote.gameObject);
-            for(int i=0;i<6;i++)if(before[i]!=Match.Fighters[i].Hp)StartCoroutine(FloatText(i,(Match.Fighters[i].Hp-before[i]).ToString("+0;-0"),Match.Fighters[i].Hp<before[i]?red:teal));
-            if(friendly)StartCoroutine(FloatText(target,"+"+power,teal));
-            t=0;var original=new Vector2(positions[target].x,-positions[target].y);while(t<.2f){t+=Time.deltaTime;units[target].anchoredPosition=original+new Vector2(Mathf.Sin(t*100)*3,0);yield return null;}units[target].anchoredPosition=original;
+            busy=true;RebuildHand();endButton.interactable=false;
+            for(int i=0;i<6;i++)outlines[i].color=Color.clear;
+            Tone(ability.Friendly?guardSound:attackSound);
+            yield return ActionAnimation(owner,target,ability.Effect,before,shields);
+            busy=false;Refresh();
+            if(Match.Outcome!=0)yield return ResultAfter();
+        }
+        IEnumerator ActionAnimation(int owner,int target,Effect effect,int[] before,int[] shields)
+        {
+            yield return CastTravel(owner,target,effect);
+            Color color=EffectColor(effect,owner);
+            Refresh();
+            for(int i=0;i<6;i++){
+                var f=Match.Fighters[i];
+                bool affected=i==target||before[i]!=f.Hp||shields[i]!=f.Shield;
+                if(!affected)continue;
+                StartCoroutine(Impact(i,effect,color));
+                int delta=f.Hp-before[i],shieldDelta=f.Shield-shields[i];
+                if(delta!=0)StartCoroutine(FloatText(i,delta.ToString("+0;-0"),delta>0?teal:red));
+                else if(shieldDelta!=0)StartCoroutine(FloatText(i,(shieldDelta>0?"+":"")+shieldDelta+" escudo",color));
+                else if(i==target&&effect==Effect.Channel)StartCoroutine(FloatText(i,"Canalizado",violet));
+                else if(i==target&&effect==Effect.Mark)StartCoroutine(FloatText(i,"Marcado",gold));
+            }
+            yield return new WaitForSeconds(.68f);
         }
         IEnumerator FloatText(int target,string value,Color color)
         {
-            var p=positions[target];var label=Label(fxRoot,value,p.x+30,p.y+40,160,45,30,color,TextAnchor.MiddleCenter,true);float t=0;
-            while(t<.85f){t+=Time.deltaTime;label.rectTransform.anchoredPosition=new Vector2(p.x+30,-p.y-40+t*50);label.color=new Color(color.r,color.g,color.b,1-t/.85f);yield return null;}Destroy(label.gameObject);
+            var p=positions[target];var label=Label(fxRoot,value,p.x-10,p.y+12,240,45,27,color,TextAnchor.MiddleCenter,true);float t=0;
+            var shadow=label.gameObject.AddComponent<Shadow>();shadow.effectColor=new Color(.05f,.08f,.09f,.95f);shadow.effectDistance=new Vector2(2,-2);
+            while(t<.95f){t+=Time.deltaTime;label.rectTransform.anchoredPosition=new Vector2(p.x-10,-p.y-12+t*55);label.color=new Color(color.r,color.g,color.b,Mathf.Min(1,(.95f-t)*3));yield return null;}Destroy(label.gameObject);
         }
         public void EndTurn(){if(!busy&&Match.Outcome==0&&overlay==null)StartCoroutine(EnemyTurn());}
         IEnumerator EnemyTurn()
         {
-            busy=true;selected=-1;Match.BeginEnemy();Refresh();yield return new WaitForSeconds(.6f);
+            busy=true;selected=-1;Match.BeginEnemy();Refresh();yield return TurnBanner("Vez dos exilados",red);
             for(int i=0;i<Match.Intents.Count&&Match.Outcome==0;i++) {
-                var intent=Match.Intents[i];var before=Match.Fighters.Select(f=>f.Hp).ToArray();
-                if(Match.ExecuteIntent(i)){Refresh();Tone(attackSound);yield return ActionAnimation(intent.Owner,intent.Target,intent.Effect==Effect.Guard,before,intent.Power);yield return new WaitForSeconds(.45f);}
+                var intent=Match.Intents[i];var before=Match.Fighters.Select(f=>f.Hp).ToArray();var shields=Match.Fighters.Select(f=>f.Shield).ToArray();
+                int target=intent.Target;
+                if(!Match.Fighters[target].Alive)target=Match.Fighters.FindIndex(f=>f.Alive&&f.Enemy==FriendlyEffect(intent.Effect));
+                if(Match.ExecuteIntent(i)){Tone(FriendlyEffect(intent.Effect)?guardSound:attackSound);yield return ActionAnimation(intent.Owner,target,intent.Effect,before,shields);yield return new WaitForSeconds(.15f);}
             }
-            Match.BeginPlayer();busy=false;Refresh();if(Match.Outcome!=0)yield return ResultAfter();
+            Match.BeginPlayer();Refresh();if(Match.Outcome==0)yield return TurnBanner("Sua vez",teal);
+            busy=false;Refresh();if(Match.Outcome!=0)yield return ResultAfter();
         }
         void Notify(string value){notice=value;noticeUntil=Time.unscaledTime+4;UpdateHint();}
         void UpdateHint()
         {
             if(notice!=""&&Time.unscaledTime<noticeUntil){hint.text=notice;return;}
-            hint.text=Match.Outcome!=0?"Batalha concluída.":busy?"Os exilados estão agindo…":selected>=0&&selected<Match.Hand.Count?Match.Describe(Match.Hand[selected]).Name+"  →  toque em um "+(Match.Describe(Match.Hand[selected]).Friendly?"ALIADO":"INIMIGO")+" destacado":"Escolha uma carta e depois seu alvo. Use os três guerreiros para ativar o Pacto.";
+            hint.text=Match.Outcome!=0?"Batalha concluída.":busy?(Match.PlayerTurn?"Seu guerreiro está agindo…":"Os exilados estão agindo…"):selected>=0&&selected<Match.Hand.Count?Match.Describe(Match.Hand[selected]).Name+"  →  toque em um "+(Match.Describe(Match.Hand[selected]).Friendly?"ALIADO":"INIMIGO")+" destacado":"Escolha uma carta e seu alvo. Os três guerreiros juntos ativam o Pacto!";
         }
         RectTransform Modal(string title,int height=510)
         {
             ClearOverlay();overlay=Box(root,"Overlay",0,0,1600,900,new Color(.01f,.025f,.04f,.88f));overlay.GetComponent<Image>().raycastTarget=true;
-            var p=Box(overlay,"Panel",235,(900-height)/2,1130,height,ink);Border(p,gold,2);
+            var p=Surface(overlay,"Panel",235,(900-height)/2,1130,height,ink);Border(p,gold,2);
             Label(p,title,30,20,970,44,29,gold,TextAnchor.MiddleLeft,true);
             ButtonAt(p,"×",1050,22,49,43,ClearOverlay,panel,26);return p;
         }
         void ClearOverlay(){if(overlay!=null)Destroy(overlay.gameObject);overlay=null;}
         void ShowGear()
         {
-            if(busy)return;var p=Modal("ARSENAL DO PACTO",560);
+            if(busy||rewardOpen)return;var p=Modal("ARSENAL DO PACTO",560);
             Label(p,"Troque o equipamento antes da primeira ação. Forje durante seu turno: 1 energia + fragmentos.",30,73,1060,35,18,muted);
             for(int i=0;i<3;i++) {
-                int n=i;var f=Match.Fighters[i];var col=Box(p,"Equipment",30+i*365,124,340,337,panel);
+                int n=i;var f=Match.Fighters[i];var col=Surface(p,"Equipment",30+i*365,124,340,337,panel);
                 Picture(col,sprites[i],8,9,91,98);Label(col,f.Name,115,19,210,30,22,cream,TextAnchor.MiddleLeft,true);
                 Label(col,"NÍVEL "+(f.Tier+1)+" / 3",115,57,210,24,14,teal);
                 Label(col,Match.GearName(i),15,114,310,31,21,gold,TextAnchor.MiddleCenter,true);
@@ -247,22 +281,42 @@ namespace RunePact.Presentation
         }
         void ShowHelp()
         {
+            if(rewardOpen)return;
             var p=Modal("COMO JOGAR",530);
             Label(p,"1   Selecione uma das seis cartas e toque no alvo destacado.\n2   Você recebe 4 de energia e compra até 6 cartas por turno.\n3   Escudos duram até o próximo turno de quem os recebeu.\n4   Use cartas dos 3 aliados no turno: o Pacto concede +1 energia.\n5   Veja a próxima ação acima de cada inimigo e prepare sua defesa.\n6   EQUIPAMENTOS: troque habilidades antes da primeira ação ou use a forja.\n7   Derrote os 3 exilados. Cartas de aliados caídos saem do ciclo de compra.",40,88,1050,296,21,cream);
-            Label(p,"Queima: 6 de dano direto por turno. Perfurante: ignora escudo.\nApós a rodada 12, a instabilidade causa dano crescente aos dois times.",40,400,1050,76,18,gold);
+            Label(p,"Marca: próximo ataque +10. Canalização: próximo ataque recebe o bônus indicado.\nFortificado: preserva escudo uma vez. Queima: 6/turno. Perfurante ignora escudo.\nVença 3 encontros; escolha uma recompensa entre eles. Instabilidade após rodada 12.",40,400,1050,100,17,gold);
         }
         void ConfirmReset()
-        {if(busy)return;var p=Modal("REINICIAR ESTA BATALHA?",250);Label(p,"O combate atual será descartado. Seus equipamentos escolhidos serão mantidos.",35,80,1050,50,21,cream);ButtonAt(p,"REINICIAR",35,157,500,55,ResetBattle);ButtonAt(p,"CONTINUAR",560,157,535,55,ClearOverlay);}
+        {if(busy||rewardOpen)return;var p=Modal("REINICIAR A JORNADA?",250);Label(p,"A jornada volta ao primeiro encontro. Seus equipamentos escolhidos serão mantidos.",35,80,1050,50,21,cream);ButtonAt(p,"REINICIAR",35,157,500,55,ResetBattle);ButtonAt(p,"CONTINUAR",560,157,535,55,ClearOverlay);}
         IEnumerator ResultAfter()
         {
-            yield return new WaitForSeconds(.65f);var p=Modal(Match.Outcome==1?"VITÓRIA DO PACTO":Match.Outcome==2?"EMPATE NO SANTUÁRIO":"O PACTO CAIU",350);
+            yield return new WaitForSeconds(.65f);
+            if(journey.AwaitingReward){ShowRewards();yield break;}
+            var p=Modal(journey.Complete?"JORNADA CONCLUÍDA":Match.Outcome==2?"EMPATE NO SANTUÁRIO":"O PACTO CAIU",350);
             Label(p,"Rodadas: "+Match.Round+"  •  Cartas usadas: "+Match.CardsPlayed+"\nExperimente outros equipamentos e compare suas estratégias.",35,92,1060,100,23,cream,TextAnchor.MiddleCenter);
             ButtonAt(p,"JOGAR NOVAMENTE",290,230,550,66,ResetBattle,new Color(.16f,.35f,.35f),24);
+        }
+        void ShowRewards()
+        {
+            var p=Modal("VITÓRIA • ESCOLHA UMA RECOMPENSA",440);
+            rewardOpen=true;
+            foreach(var button in p.GetComponentsInChildren<Button>())button.gameObject.SetActive(false);
+            Label(p,"Próximo: "+(journey.Encounter==2?"O REGENTE":"A GUARDA DO SANTUÁRIO")+"\nTodos recuperam ao menos 30 de vida, inclusive aliados caídos. Equipamentos e níveis são mantidos.",35,85,1060,85,20,cream,TextAnchor.MiddleCenter);
+            string[] names={"DESCANSO","VITALIDADE","SUPRIMENTOS"};
+            string[] descriptions={"Recupere 65 de vida\npor guerreiro.","+15 de vida máxima\ne recupere 45 de vida.","+4 fragmentos de forja\ne recupere 30 de vida."};
+            for(int i=0;i<3;i++){
+                int choice=i;
+                Label(p,descriptions[i],35+i*365,195,330,75,20,cream,TextAnchor.MiddleCenter);
+                ButtonAt(p,names[i],35+i*365,305,330,70,()=>{
+                    if(!journey.ChooseReward(choice))return;
+                    rewardOpen=false;ClearOverlay();Match=journey.Current;selected=-1;notice="";Refresh();
+                },new Color(.16f,.35f,.35f),21);
+            }
         }
         void Update()
         {
             if(Match==null)return;UpdateHint();
-            if(Input.GetKeyDown(KeyCode.Escape)){if(overlay!=null)ClearOverlay();else{selected=-1;Refresh();}}
+            if(Input.GetKeyDown(KeyCode.Escape)&&!rewardOpen){if(overlay!=null)ClearOverlay();else{selected=-1;Refresh();}}
             if(overlay!=null)return;
             for(int i=0;i<6;i++)if(Input.GetKeyDown(KeyCode.Alpha1+i))SelectCard(i);
             if(Input.GetKeyDown(KeyCode.Space))EndTurn();

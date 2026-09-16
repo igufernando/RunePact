@@ -4,10 +4,10 @@ using System.Linq;
 
 namespace RunePact.Core
 {
-    public enum Effect { Strike, Guard, Mend, Burn, Pierce, Volley, Rally }
+    public enum Effect { Strike, Guard, Mend, Burn, Pierce, Volley, Rally, Mark, Fortify, Channel }
     public sealed class Fighter
     {
-        public int Id, MaxHp, Hp, Shield, Burn, Weak, Tier, Gear;
+        public int Id, MaxHp, Hp, Shield, Burn, Weak, Tier, Gear, Mark, Fortified, Channel;
         public string Name;
         public bool Enemy;
         public bool Alive => Hp > 0;
@@ -23,7 +23,7 @@ namespace RunePact.Core
         public string Name, Source, Description;
         public int Cost, Power;
         public Effect Effect;
-        public bool Friendly => Effect==Effect.Guard || Effect==Effect.Mend || Effect==Effect.Rally;
+        public bool Friendly => Effect==Effect.Guard || Effect==Effect.Mend || Effect==Effect.Rally || Effect==Effect.Fortify || Effect==Effect.Channel;
     }
     public sealed class Intent
     {
@@ -45,15 +45,17 @@ namespace RunePact.Core
         // 0 ongoing, 1 victory, -1 defeat, 2 draw.
         public int Outcome;
         public int Harmony => contributors.Count;
-        public Battle(int seed=0, int[] gear=null)
+        public readonly int Encounter;
+        public Battle(int seed=0, int[] gear=null, int encounter=1)
         {
+            Encounter=encounter;
             random=new Random(seed);
             Fighters.Add(new Fighter(0,"AURA",145,false));
             Fighters.Add(new Fighter(1,"LYRA",115,false));
             Fighters.Add(new Fighter(2,"KAEL",125,false));
-            Fighters.Add(new Fighter(3,"FERRO",155,true));
-            Fighters.Add(new Fighter(4,"VÉU",120,true));
-            Fighters.Add(new Fighter(5,"ESPINHO",115,true));
+            Fighters.Add(new Fighter(3,encounter==3?"REGENTE":"BRUTAMONTES",155+(encounter-1)*30,true));
+            Fighters.Add(new Fighter(4,"ACÓLITO",120+(encounter-1)*15,true));
+            Fighters.Add(new Fighter(5,"ASSASSINO",115+(encounter-1)*15,true));
             for(int i=0;i<3;i++) {
                 Fighters[i].Gear=gear==null?0:gear[i];
                 for(int copy=0;copy<2;copy++) for(int slot=0;slot<3;slot++) Deck.Add(new Card(i,slot));
@@ -72,8 +74,12 @@ namespace RunePact.Core
         public Ability Describe(Card card)
         {
             var f=Fighters[card.Owner];
-            if(card.Slot==0) return Make(new[]{"Corte preciso","Pulso arcano","Disparo ágil"}[card.Owner],"Habilidade base",Effect.Strike,new[]{28,25,30}[card.Owner],1,"Causa {0} de dano a um inimigo.");
-            if(card.Slot==1) return Make("Postura defensiva","Habilidade base",Effect.Guard,24,1,"Concede {0} de escudo a um aliado até seu próximo turno.");
+            if(card.Slot==0) return Make(new[]{"Corte preciso","Pulso arcano","Marca rúnica"}[card.Owner],"Habilidade base",card.Owner==2?Effect.Mark:Effect.Strike,new[]{28,25,24}[card.Owner],1,card.Owner==2?"Causa {0} de dano. Marca: próximo ataque recebe +10 de dano.":"Causa {0} de dano a um inimigo.");
+            if(card.Slot==1) {
+                if(card.Owner==0)return Make("Proteção firme","Guardião",Effect.Fortify,28,1,"Concede {0} de escudo. Fortificado: preserva escudo por um turno.");
+                if(card.Owner==1)return Make("Canalizar","Arcanista",Effect.Channel,14,1,"Próximo ataque do aliado recebe +{0} de dano. Não acumula.");
+                return Make("Cobertura","Batedor",Effect.Guard,24,1,"Concede {0} de escudo a um aliado até seu próximo turno.");
+            }
             int n=f.Tier;
             if(card.Owner==0 && f.Gear==0) return Make("Bastião",GearName(0),Effect.Rally,19+n*7,2,"Todos os aliados recebem {0} de escudo. Remove fraqueza.");
             if(card.Owner==0) return Make("Corte de brasa",GearName(0),Effect.Burn,31+n*8,1,"Causa {0} de dano e aplica 2 turnos de queimadura (6/turno).");
@@ -98,6 +104,7 @@ namespace RunePact.Core
             if(!CanTarget(card,target)){error=a.Friendly?"Escolha um aliado vivo.":"Escolha um inimigo vivo.";return false;}
             Energy-=a.Cost; Hand.RemoveAt(index); Discard.Add(card); Played++; TotalPlayed++; CardsPlayed++;
             int power=caster.Weak>0?(int)(a.Power*0.75f):a.Power;
+            if(!a.Friendly){power+=caster.Channel;caster.Channel=0;}
             Resolve(a.Effect,power,target,false);
             Say(caster.Name+" • "+a.Name+" → "+(a.Effect==Effect.Volley||a.Effect==Effect.Rally?"equipe":Fighters[target].Name));
             contributors.Add(card.Owner);
@@ -109,19 +116,27 @@ namespace RunePact.Core
             Fighter t=Fighters[target];
             switch(fx) {
                 case Effect.Guard: t.Shield+=power; break;
+                case Effect.Fortify: t.Shield+=power;t.Fortified=1;break;
+                case Effect.Channel: t.Channel=Math.Max(t.Channel,power);break;
+                case Effect.Mark: Hit(t,power,false);if(t.Alive)t.Mark=1;break;
                 case Effect.Rally: foreach(var f in Fighters.Where(f=>f.Alive&&f.Enemy==enemy)){f.Shield+=power;f.Weak=0;} break;
                 case Effect.Mend: t.Hp=Math.Min(t.MaxHp,t.Hp+power);t.Burn=0;break;
-                case Effect.Volley: foreach(var f in Fighters.Where(f=>f.Alive&&f.Enemy!=enemy)) Damage(f,power,false);break;
-                case Effect.Pierce: Damage(t,power,true);break;
-                case Effect.Burn: Damage(t,power,false);if(t.Alive)t.Burn=Math.Max(2,t.Burn);break;
-                default: Damage(t,power,false);break;
+                case Effect.Volley: foreach(var f in Fighters.Where(f=>f.Alive&&f.Enemy!=enemy)) Hit(f,power,false);break;
+                case Effect.Pierce: Hit(t,power,true);break;
+                case Effect.Burn: Hit(t,power,false);if(t.Alive)t.Burn=Math.Max(2,t.Burn);break;
+                default: Hit(t,power,false);break;
             }
+        }
+        static void Hit(Fighter target,int power,bool pierce)
+        {
+            if(target.Mark>0){power+=10;target.Mark=0;}
+            Damage(target,power,pierce);
         }
         public static void Damage(Fighter f,int amount,bool pierce)
         {
             if(!f.Alive)return;
             int absorb=pierce?0:Math.Min(f.Shield,amount);f.Shield-=absorb;f.Hp=Math.Max(0,f.Hp-(amount-absorb));
-            if(!f.Alive){f.Shield=0;f.Burn=0;f.Weak=0;}
+            if(!f.Alive){f.Shield=0;f.Burn=0;f.Weak=0;f.Mark=0;f.Fortified=0;f.Channel=0;}
         }
         public bool Upgrade(int owner,out string error)
         {
@@ -141,7 +156,7 @@ namespace RunePact.Core
         void Tick(bool enemy)
         {
             foreach(var f in Fighters.Where(f=>f.Enemy==enemy&&f.Alive)) {
-                f.Shield=0;
+                if(f.Fortified>0)f.Fortified--;else f.Shield=0;
                 if(f.Burn>0){ Damage(f,6,true); f.Burn=Math.Max(0,f.Burn-1);Say(f.Name+" sofreu 6 de queimadura."); }
                 f.Weak=Math.Max(0,f.Weak-1);
             }
@@ -156,7 +171,8 @@ namespace RunePact.Core
             if(PlayerTurn||Outcome!=0||index<0||index>=Intents.Count)return false;
             var intent=Intents[index];var actor=Fighters[intent.Owner];if(!actor.Alive)return false;
             int target=intent.Target;
-            if(!Fighters[target].Alive) target=Fighters.FindIndex(f=>f.Alive && f.Enemy==(intent.Effect==Effect.Guard));
+            bool friendly=intent.Effect==Effect.Guard||intent.Effect==Effect.Mend||intent.Effect==Effect.Rally;
+            if(!Fighters[target].Alive) target=Fighters.FindIndex(f=>f.Alive && f.Enemy==friendly);
             if(target<0){CheckOutcome();return false;}
             int power=actor.Weak>0?(int)(intent.Power*.75f):intent.Power;
             Resolve(intent.Effect,power,target,true);
@@ -189,9 +205,17 @@ namespace RunePact.Core
             foreach(var f in Fighters.Where(f=>f.Enemy&&f.Alive)) {
                 int target=living[(Round+f.Id)%living.Count].Id;
                 var fx=Effect.Strike;int p=38+(Round-1)/3*2;string label="Ataque";
-                if(f.Id==3 && Round%3==0){fx=Effect.Guard;p=32;target=f.Id;label="Fortificar";}
-                else if(f.Id==4){fx=Round%2==1?Effect.Burn:Effect.Volley;p=fx==Effect.Volley?18:26;label=fx==Effect.Volley?"Onda sombria":"Chama violeta";}
-                else if(f.Id==5){fx=Effect.Pierce;p=27+(Round-1)/4;label="Emboscada";}
+                if(f.Id==3) {
+                    target=living.OrderByDescending(x=>x.Shield).ThenBy(x=>x.Id).First().Id;
+                    if(Encounter==3&&Round%3==0){fx=Effect.Volley;p=23;label="Ruptura do regente";}
+                    else if(Round%2==1){fx=Effect.Guard;p=22;target=f.Id;label="Preparar golpe";}
+                    else {p=45+(Encounter-1)*3;label="Golpe pesado";}
+                }
+                else if(f.Id==4){
+                    if(Round%2==0){fx=Effect.Mend;p=24;target=Fighters.Where(x=>x.Enemy&&x.Alive).OrderBy(x=>(float)x.Hp/x.MaxHp).First().Id;label="Restaurar";}
+                    else {fx=Effect.Burn;p=20;label="Chama violeta";}
+                }
+                else if(f.Id==5){fx=Effect.Pierce;p=22+(Encounter-1)*2;target=living.OrderBy(x=>x.Hp).First().Id;label="Caçar ferido";}
                 Intents.Add(new Intent {Owner=f.Id,Target=target,Power=p,Effect=fx,Label=label});
             }
         }
