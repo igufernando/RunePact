@@ -14,6 +14,8 @@ O idioma atual para jogadores é somente português brasileiro.
 
 Consulte a [evolução de gameplay](Docs/GAMEPLAY-V2.md) para a jornada de três encontros, recompensas, papéis e efeitos.
 
+Consulte também [jornada e decisões](Docs/GAMEPLAY-V3.md) para formações, relíquias, chefe, pausa e salvamento local.
+
 A [direção da interface e dos efeitos](Docs/VISUAL-DESIGN.md) descreve a HUD de fantasia, as cartas em pergaminho e a apresentação do combate.
 
 - Batalha 3 contra 3 com intenções inimigas visíveis.
@@ -66,6 +68,8 @@ The current player-facing language is Brazilian Portuguese only.
 ### Prototype features
 
 See [gameplay evolution](Docs/GAMEPLAY-V2.md) for the three-encounter journey, rewards, roles, and effects.
+
+See [journey and decisions](Docs/GAMEPLAY-V3.md) for formations, relics, boss, pause, and local saving.
 
 The [interface and effects direction](Docs/VISUAL-DESIGN.md) describes the fantasy HUD, parchment cards, and combat presentation.
 

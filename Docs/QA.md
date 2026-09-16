@@ -2,6 +2,8 @@
 
 ## Rodada de evolução
 
+A rodada de sistemas passou em 2.515 verificações e 80 batalhas simuladas. Ela cobre formações, relíquias, desconto do Grimório Vivo, fase 2 do Regente, recompensas e restauração de ponto salvo. A interface ainda precisa de testes manuais em diferentes aparelhos Android antes de publicação.
+
 A rodada visual mantém os personagens aprovados, reorganiza o campo e renova cartas, HUD e arsenal. Foram conferidos seleção de alvos, impacto de marca, proteção de equipe, cura efetiva, transição de turno e arsenal no executável Windows. As regras continuam passando em 2.511 verificações. A validação visual foi feita em desktop; testes de toque em aparelho ainda estão pendentes.
 
 A evolução passou em 2.511 verificações e 80 batalhas simuladas. Os testes adicionais cobrem marca, canalização, duração de Fortificado, cura do Acólito, bloqueio de recompensa fora de vitória, recuperação de caídos, persistência de melhorias e término da jornada. O build Windows foi gerado com sucesso. A seleção e aplicação da Marca Rúnica foram conferidas na interface; o balanceamento da jornada ainda precisa de playtests humanos.
@@ -33,6 +35,8 @@ O build inicial para Windows foi verificado para a cena de batalha, seis sprites
 # Prototype QA (EN)
 
 ## Evolution milestone
+
+The systems milestone passed 2,515 assertions and 80 simulated battles. It covers formations, relics, Living Grimoire discount, Regent phase 2, rewards, and checkpoint restoration. The interface still needs manual tests on different Android devices before publishing.
 
 The visual milestone preserves the approved characters, rearranges the field, and refreshes cards, HUD, and equipment panels. Target selection, mark impact, team protection, actual healing, turn transitions, and equipment UI were checked in the Windows executable. Rules still pass 2,511 assertions. Visual validation was on desktop; device touch testing remains pending.
 

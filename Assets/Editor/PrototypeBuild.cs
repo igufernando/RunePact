@@ -80,14 +80,23 @@ public static class PrototypeBuild
                 journey.Current.Fighters[1].Tier=2;
                 check(!journey.ChooseReward(3),"invalid reward rejected");
                 check(journey.ChooseReward(1),"reward advances journey");
-                check(journey.Current.Fighters[0].Hp==45&&journey.Current.Fighters[1].Tier==2,"rest revives and preserves upgrades");
-                check(journey.Current.Fighters[0].MaxHp==145+15*encounter,"vitality persists");
+                check(journey.Current.Fighters[0].Hp==35&&journey.Current.Fighters[1].Tier==2,"checkpoint recovery and upgrade persistence");
+                check(journey.CardBoost[(9+encounter)%3]>=6,"card upgrade reward persists");
             }
         }
         check(journey.Complete&&!journey.ChooseReward(0),"journey ends after boss");
         var healer=new Battle(8);healer.Round=2;healer.Fighters[3].Hp=50;healer.Plan();healer.BeginEnemy();
         int healingIntent=healer.Intents.FindIndex(x=>x.Owner==4);
         check(healer.ExecuteIntent(healingIntent)&&healer.Fighters[3].Hp==74,"acolyte heals ally");
+        var relicJourney=new Journey(11);relicJourney.Current.Fighters.Where(x=>x.Enemy).ToList().ForEach(x=>x.Hp=0);relicJourney.Current.CheckOutcome();
+        var offers=relicJourney.GetOffers();check(offers.Length==3&&offers.Select(x=>x.Kind).Distinct().Count()==3,"reward offer categories");
+        check(relicJourney.ChooseReward(2)&&relicJourney.Relics.Count==1,"relic reward persists");
+        string snapshot=relicJourney.Save();Journey restored;check(Journey.TryRestore(snapshot,out restored)&&restored.Encounter==2&&restored.Relics.Count==1,"journey checkpoint restores");
+        var grimoire=new Battle(13,null,1,EnemyFormation.Vanguard,new[]{Relic.LivingGrimoire});
+        int mage=grimoire.Hand.FindIndex(x=>x.Owner==1);check(grimoire.GetCost(grimoire.Hand[mage])==0,"living grimoire discounts first mage card");
+        var boss=new Battle(14,null,3,EnemyFormation.Regent);boss.Fighters[3].Hp=130;boss.Plan();check(boss.BossPhase==2&&boss.Fighters[3].Shield==35,"regent phase two awakens");
+        var shieldwall=new Battle(15,null,1,EnemyFormation.Shieldwall);check(shieldwall.Fighters.Skip(3).Any(x=>x.Role==EnemyRole.Sentinel),"shieldwall formation");
+        var pyre=new Battle(16,null,1,EnemyFormation.Pyre);check(pyre.Fighters.Skip(3).Count(x=>x.Role==EnemyRole.Pyromancer)==2,"pyre formation");
         // Bots com seed jogam partidas completas para cobrir reembaralhamento, eliminação, novo alvo da IA e término.
         // Seeded bots play whole matches to cover reshuffling, elimination, AI retarget and termination.
         int wins=0, losses=0,draws=0;
