@@ -1,0 +1,41 @@
+# Unity generated folders / Pastas geradas pela Unity
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# Build artifacts / Artefatos de build
+/Builds/
+/Build/
+/Builds-*/
+*.apk
+*.aab
+*.unitypackage
+
+# IDE and local tooling / IDE e ferramentas locais
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.sln
+*.suo
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+
+# Generated reports and operating system files / Relatórios gerados e arquivos do sistema
+CombatTestResults.txt
+sysinfo.txt
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Keep Unity metadata tracked / Manter metadados da Unity versionados
+!/[Aa]ssets/**/*.meta
+!/[Pp]ackages/packages-lock.json
