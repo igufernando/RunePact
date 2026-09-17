@@ -35,6 +35,7 @@
 # Relatórios gerados e arquivos do sistema
 # Generated reports and operating system files
 CombatTestResults.txt
+BalanceTestResults.txt
 sysinfo.txt
 .DS_Store
 Thumbs.db

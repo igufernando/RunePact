@@ -66,21 +66,24 @@ namespace RunePact.Presentation
         }
         void ShowStartMenu()
         {
-            var p=Modal("R U N E P A C T",500);menuOpen=true;paused=true;Time.timeScale=0;
+            var p=Modal("R U N E P A C T",600);menuOpen=true;paused=true;Time.timeScale=0;
             foreach(var b in p.GetComponentsInChildren<Button>())b.gameObject.SetActive(false);
             var closeShadow=p.Find("× shadow");if(closeShadow!=null)closeShadow.gameObject.SetActive(false);
-            Picture(p,sprites[0],60,105,200,255);Picture(p,sprites[1],865,105,200,255);
-            Label(p,"Santuário do Crepúsculo",275,85,580,50,29,cream,TextAnchor.MiddleCenter,true);
-            Label(p,"TESTE RÁPIDO\n1 encontro  →  recompensa  →  Regente de Âmbar\nCartas, equipamentos e um pacto entre três guerreiros.",270,142,590,94,19,muted,TextAnchor.MiddleCenter);
-            ButtonAt(p,"CONTINUAR JORNADA",310,264,510,60,()=>{menuOpen=false;ClearOverlay();if(Match.Outcome!=0)StartCoroutine(ResultAfter());},new Color(.28f,.47f,.39f),23);
-            ButtonAt(p,"NOVA JORNADA",310,341,510,55,()=>{menuOpen=false;ResetBattle();},panel,20);
-            Label(p,"Toque em um personagem para inspecionar seus efeitos. Velocidade 1×/2× no topo.",50,433,1030,35,17,gold,TextAnchor.MiddleCenter);
+            Picture(p,sprites[0],60,112,180,255);Picture(p,sprites[1],875,112,180,255);
+            Label(p,"Santuário do Crepúsculo",275,78,580,50,29,cream,TextAnchor.MiddleCenter,true);
+            Label(p,"Três guerreiros, um só pacto. Escolha o ritmo da próxima jornada.",260,134,610,55,18,muted,TextAnchor.MiddleCenter);
+            ButtonAt(p,"MODO: "+(quickMode?"RÁPIDO • 1 encontro + chefe":"PADRÃO • 2 encontros + chefe"),295,205,540,49,()=>{quickMode=!quickMode;ShowStartMenu();},panel,17);
+            ButtonAt(p,"DIFICULDADE: "+DifficultyName(difficulty),295,268,540,49,()=>{difficulty=(EncounterDifficulty)(((int)difficulty+1)%3);ShowStartMenu();},panel,17);
+            ButtonAt(p,"CONTINUAR JORNADA SALVA",310,341,510,55,()=>{menuOpen=false;ClearOverlay();if(Match.Outcome!=0)StartCoroutine(ResultAfter());},new Color(.28f,.47f,.39f),20);
+            ButtonAt(p,"INICIAR NOVA JORNADA",310,415,510,55,()=>{menuOpen=false;ResetBattle();},panel,20);
+            Label(p,"Selecione uma carta e toque no alvo, ou arraste-a até ele.",50,515,1030,35,17,gold,TextAnchor.MiddleCenter);
         }
         void FitSafeArea()
         {
             var canvas=root.GetComponentInParent<Canvas>();float scale=canvas.scaleFactor;if(scale<=0)return;
             var safe=Screen.safeArea;float fit=Mathf.Min(safe.width/(1600*scale),safe.height/(900*scale));
             root.localScale=Vector3.one*fit;root.anchoredPosition=(safe.center-new Vector2(Screen.width,Screen.height)*.5f)/scale;
+            UpdatePortraitPrompt(safe);
         }
         void RefreshEnhancements()
         {
@@ -91,9 +94,9 @@ namespace RunePact.Presentation
             for(int i=0;i<6;i++){
                 bool hide=boss&&i>=4;units[i].gameObject.SetActive(!hide);
                 var f=Match.Fighters[i];Sprite sprite=i<3?sprites[i]:f.Role==EnemyRole.Regent?bossSprite:f.Role==EnemyRole.Assassin?sprites[5]:f.Role==EnemyRole.Acolyte||f.Role==EnemyRole.Pyromancer?sprites[4]:sprites[3];
-                if(sprite==null)sprite=sprites[i];portraits[i].sprite=sprite;
+                if(sprite==null)sprite=sprites[i];if(!acting[i])portraits[i].sprite=sprite;
                 float height=boss&&i==3?236:188;float width=height*sprite.rect.width/sprite.rect.height;
-                portraits[i].rectTransform.sizeDelta=new Vector2(width,height);
+                if(!acting[i])portraits[i].rectTransform.sizeDelta=new Vector2(width,height);
                 var intent=units[i].Find("Intention") as RectTransform;var intentShadow=units[i].Find("Intention shadow") as RectTransform;
                 float intentY=boss&&i==3?102:44;intent.anchoredPosition=new Vector2(-16,intentY);intentShadow.anchoredPosition=new Vector2(-16,intentY-5);
                 if(f.Stun>0&&i>=3)intentTexts[i].text="ATORDOADO • próxima ação impedida";
@@ -106,8 +109,10 @@ namespace RunePact.Presentation
             float time=Time.time;
             for(int i=0;i<6;i++){
                 var f=Match.Fighters[i];float breath=f.Alive?Mathf.Sin(time*2.1f+i*1.7f):0;
-                portraits[i].rectTransform.localScale=new Vector3((i<3?1:-1)*(1-breath*.006f),1+breath*.009f,1);
-                portraits[i].rectTransform.localRotation=Quaternion.Euler(0,0,f.Alive?Mathf.Sin(time*1.3f+i)*.45f:0);
+                if(!acting[i]){
+                    portraits[i].rectTransform.localScale=new Vector3((i<3?1:-1)*(1-breath*.006f),1+breath*.009f,1);
+                    portraits[i].rectTransform.localRotation=Quaternion.Euler(0,0,f.Alive?Mathf.Sin(time*1.3f+i)*.45f:0);
+                }
                 bool ward=f.Alive&&f.Shield>0;float pulse=.5f+.5f*Mathf.Sin(time*2.6f+i);
                 wards[i].color=ward?new Color(.42f,.83f,1f,.22f+pulse*.15f):Color.clear;
                 wardGlows[i].color=ward?new Color(.4f,.82f,1f,.045f+pulse*.025f):Color.clear;
@@ -135,25 +140,29 @@ namespace RunePact.Presentation
             Ability ability=null;
             if(offer.Kind!=RewardKind.Relic){
                 var card=new Card(offer.Owner,offer.Kind==RewardKind.Upgrade?offer.Slot:2,offer.Kind==RewardKind.Card?offer.Card:CardVariant.Standard);ability=Match.Describe(card);
-                Picture(r,sprites[offer.Owner],81,16,169,170);Orb(r,FantasySkin.Circle,19,20,52,52,gold);Label(r,ability.Cost.ToString(),19,20,52,51,29,writing,TextAnchor.MiddleCenter,true);
-                var symbol=ability.Friendly?FantasySkin.Shield:FantasySkin.Spark;Orb(r,symbol,252,130,48,49,gold);
+                Picture(r,offer.Kind==RewardKind.Upgrade?itemSprites[5]:AbilityPortrait(offer.Owner,ability.Effect),66,20,199,163);
+                if(offer.Kind==RewardKind.Card){Orb(r,FantasySkin.Circle,19,20,52,52,gold);Label(r,ability.Cost.ToString(),19,20,52,51,29,writing,TextAnchor.MiddleCenter,true);}
+                Orb(r,AbilityIcon(ability.Effect,offer.Owner),263,134,36,36,cream);
             }else{
-                Orb(r,FantasySkin.Circle,115,44,100,100,gold);Orb(r,FantasySkin.Ring,108,36,114,114,cream);
-                Orb(r,offer.Relic==Relic.AncientEmber?FantasySkin.Flame:offer.Relic==Relic.CeremonialArrow?FantasySkin.Arrow:offer.Relic==Relic.OakBark?FantasySkin.Leaf:FantasySkin.Spark,135,63,60,60,accent);
+                Picture(r,itemSprites[(int)offer.Relic],68,20,194,162);
             }
             Label(r,category,12,194,306,24,13,accent,TextAnchor.MiddleCenter,true);
             var title=Label(r,offer.Title.ToUpperInvariant(),16,222,298,54,24,writing,TextAnchor.MiddleCenter,true);title.resizeTextForBestFit=true;title.resizeTextMinSize=18;title.resizeTextMaxSize=24;
             string detail=offer.Kind==RewardKind.Relic?offer.Detail:ability.Description;
             if(offer.Kind==RewardKind.Upgrade)detail="Poder "+ability.Power+" → "+(ability.Power+6)+"\n"+offer.Detail;
             Label(r,detail,23,281,284,78,17,writing,TextAnchor.MiddleCenter);
-            Label(r,offer.Kind==RewardKind.Card?"Entra na mão inicial do chefe":offer.Kind==RewardKind.Upgrade?Match.Fighters[offer.Owner].Name+" • só esta habilidade":"Efeito ativo durante toda a jornada",19,364,292,26,13,accent,TextAnchor.MiddleCenter,true);
+            Label(r,offer.Kind==RewardKind.Card?"Entra na próxima mão inicial":offer.Kind==RewardKind.Upgrade?Match.Fighters[offer.Owner].Name+" • só esta habilidade":"Efeito ativo durante toda a jornada",19,364,292,26,13,accent,TextAnchor.MiddleCenter,true);
+            CardDecoration(r,offer.Card==CardVariant.Tremor&&offer.Kind==RewardKind.Card?CardRarity.Epic:CardRarity.Rare,330,465);
             return r;
         }
         void ShowRelics()
         {
             if(busy||rewardOpen)return;var p=Modal("RELÍQUIAS DO PACTO",370);
-            if(journey.Relics.Count==0)Label(p,"Você ainda não possui relíquias.\nAo vencer o primeiro encontro, poderá escolher uma como recompensa.",50,110,1030,120,24,cream,TextAnchor.MiddleCenter);
-            else for(int i=0;i<journey.Relics.Count;i++){Label(p,Journey.RelicTitle(journey.Relics[i]),45,95+i*85,1040,35,25,gold);Label(p,Journey.RelicDetail(journey.Relics[i]),45,134+i*85,1040,35,22,cream);}
+            if(journey.Relics.Count==0){
+                for(int i=0;i<5;i++)Picture(p,itemSprites[i],257+i*125,98,100,100);
+                Label(p,"Ao vencer um encontro, escolha uma relíquia como recompensa.\nSeus poderes acompanham o grupo durante a jornada.",50,226,1030,85,21,cream,TextAnchor.MiddleCenter);
+            }
+            else for(int i=0;i<journey.Relics.Count;i++){Picture(p,itemSprites[(int)journey.Relics[i]],45,95+i*110,90,95);Label(p,Journey.RelicTitle(journey.Relics[i]),160,95+i*110,900,35,24,gold);Label(p,Journey.RelicDetail(journey.Relics[i]),160,137+i*110,900,40,21,cream);}
         }
         void ShowFighterDetails(int id)
         {
@@ -175,6 +184,7 @@ namespace RunePact.Presentation
             ButtonAt(p,"VOLTAR AO COMBATE",320,502,690,57,ClearOverlay,new Color(.28f,.47f,.39f),22);
         }
         void OnApplicationPause(bool value){if(value)SaveJourney();}
+        void OnApplicationFocus(bool value){focused=value;if(!value)SaveJourney();}
         void OnApplicationQuit(){SaveJourney();}
     }
 }

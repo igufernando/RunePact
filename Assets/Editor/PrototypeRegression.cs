@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Security.Cryptography;
 using RunePact.Core;
 
 public static class PrototypeRegression
@@ -78,5 +79,16 @@ public static class PrototypeRegression
         check(Journey.TryRestore(victory.Save(),out var result)&&result.AwaitingReward,"victory restores pending reward");
         var defeat=new Journey(55);defeat.Current.Fighters.Take(3).ToList().ForEach(f=>f.Hp=0);defeat.Current.CheckOutcome();
         check(Journey.TryRestore(defeat.Save(),out result)&&result.Current.Outcome==-1,"defeat remains terminal");
+        var old=new Journey(43);foreach(var card in old.Current.Deck)card.Variant=CardVariant.Standard;
+        // Recria o cabeçalho V4 removendo os 18 bytes de metadados adicionados na V5.
+        // Recreate the V4 header by removing the 18 metadata bytes added in V5.
+        byte[] current=Convert.FromBase64String(old.Save().Split(':')[1]);
+        byte[] bytes=new byte[current.Length-18];
+        Array.Copy(current,0,bytes,0,16);Array.Copy(current,34,bytes,16,current.Length-34);
+        bytes[0]=4;bytes[1]=bytes[2]=bytes[3]=0;
+        using(var hash=SHA256.Create()){
+            string legacy=Convert.ToBase64String(hash.ComputeHash(bytes))+":"+Convert.ToBase64String(bytes);
+            check(Journey.TryRestore(legacy,out var migrated)&&migrated.QuickMode&&migrated.Difficulty==EncounterDifficulty.Normal,"V4 save migration defaults to quick normal");
+        }
     }
 }

@@ -37,7 +37,7 @@ namespace RunePact.Core
             Hand.Clear();Hand.AddRange(ReadCards(r,6));Deck.Clear();Deck.AddRange(ReadCards(r,40));Discard.Clear();Discard.AddRange(ReadCards(r,40));
             Intents.Clear();int count=ReadNumber(r,0,3);
             for(int n=0;n<count;n++){
-                int owner=ReadNumber(r,3,5),target=ReadNumber(r,0,5),power=ReadNumber(r,0,1000),effect=ReadNumber(r,0,(int)Effect.Weaken);
+                int owner=ReadNumber(r,3,5),target=ReadNumber(r,0,5),power=ReadNumber(r,0,1000),effect=ReadNumber(r,0,(int)Effect.Execute);
                 string label=r.ReadString();if(label.Length>100)throw new InvalidDataException();
                 Intents.Add(new Intent{Owner=owner,Target=target,Power=power,Effect=(Effect)effect,Label=label});
             }
@@ -49,6 +49,6 @@ namespace RunePact.Core
         internal static void WriteCards(BinaryWriter w,System.Collections.Generic.IEnumerable<Card> cards)
         {var list=cards.ToList();w.Write(list.Count);foreach(var c in list){w.Write(c.Owner);w.Write(c.Slot);w.Write((int)c.Variant);}}
         internal static Card[] ReadCards(BinaryReader r,int max)
-        {int count=ReadNumber(r,0,max);var cards=new Card[count];for(int i=0;i<count;i++)cards[i]=new Card(ReadNumber(r,0,2),ReadNumber(r,0,2),(CardVariant)ReadNumber(r,0,(int)CardVariant.Ember));return cards;}
+        {int count=ReadNumber(r,0,max);var cards=new Card[count];for(int i=0;i<count;i++)cards[i]=new Card(ReadNumber(r,0,2),ReadNumber(r,0,2),(CardVariant)ReadNumber(r,0,(int)CardVariant.Execution));return cards;}
     }
 }

@@ -4,11 +4,14 @@ using System.Linq;
 
 namespace RunePact.Core
 {
-    public enum Effect { Strike, Guard, Mend, Burn, Pierce, Volley, Rally, Mark, Fortify, Channel, Vulnerable, Regenerate, Thorns, Stun, Weaken }
+    public enum Effect { Strike, Guard, Mend, Burn, Pierce, Volley, Rally, Mark, Fortify, Channel, Vulnerable, Regenerate, Thorns, Stun, Weaken, Oath, Purify, Execute }
+    public enum CardRole { Attack, Support, Control }
+    public enum CardRarity { Common, Rare, Epic }
+    public enum EncounterDifficulty { Calm, Normal, Fierce }
     public enum EnemyFormation { Vanguard, Shieldwall, Hunt, Pyre, Regent }
     public enum EnemyRole { Brute, Acolyte, Assassin, Sentinel, Pyromancer, Regent }
     public enum Relic { PactMedallion, AncientEmber, LivingGrimoire, CeremonialArrow, OakBark }
-    public enum CardVariant { Standard, Bulwark, Comet, Renewal, ThornMantle, Shatter, Tremor, Spring, Hex, Ember }
+    public enum CardVariant { Standard, Bulwark, Comet, Renewal, ThornMantle, Shatter, Tremor, Spring, Hex, Ember, Oath, Purify, Execution }
     public sealed class Fighter
     {
         public int Id, MaxHp, Hp, Shield, Burn, Weak, Tier, Gear, Mark, Fortified, Channel, Vulnerable, Regen, Thorns, Stun;
@@ -29,7 +32,8 @@ namespace RunePact.Core
         public string Name, Source, Description;
         public int Cost, Power;
         public Effect Effect;
-        public bool Friendly => Effect==Effect.Guard || Effect==Effect.Mend || Effect==Effect.Rally || Effect==Effect.Fortify || Effect==Effect.Channel || Effect==Effect.Regenerate || Effect==Effect.Thorns;
+        public bool Friendly => Effect==Effect.Guard || Effect==Effect.Mend || Effect==Effect.Rally || Effect==Effect.Fortify || Effect==Effect.Channel || Effect==Effect.Regenerate || Effect==Effect.Thorns || Effect==Effect.Oath || Effect==Effect.Purify;
+        public CardRole Role => Friendly?CardRole.Support:Effect==Effect.Mark||Effect==Effect.Stun||Effect==Effect.Weaken||Effect==Effect.Vulnerable?CardRole.Control:CardRole.Attack;
     }
     public sealed class Intent
     {
@@ -59,11 +63,15 @@ namespace RunePact.Core
         public int Harmony => contributors.Count;
         public readonly int Encounter;
         public readonly EnemyFormation Formation;
+        public readonly EncounterDifficulty Difficulty;
+        public readonly bool QuickMode;
         public int BossPhase { get; private set; } = 1;
-        public Battle(int seed=0, int[] gear=null, int encounter=1, EnemyFormation formation=EnemyFormation.Vanguard, IEnumerable<Relic> relics=null, IEnumerable<Card> extraCards=null, int[] cardBoost=null)
+        public Battle(int seed=0, int[] gear=null, int encounter=1, EnemyFormation formation=EnemyFormation.Vanguard, IEnumerable<Relic> relics=null, IEnumerable<Card> extraCards=null, int[] cardBoost=null, EncounterDifficulty difficulty=EncounterDifficulty.Normal, bool quickMode=true)
         {
             Encounter=encounter;
             Formation=formation;
+            Difficulty=difficulty;
+            QuickMode=quickMode;
             Relics=relics==null?new List<Relic>():new List<Relic>(relics);
             CardBoost=cardBoost==null?new int[3]:new[]{cardBoost[0],cardBoost[1],cardBoost[2]};
             randomState=unchecked((uint)seed)+1u;if(randomState==0)randomState=1;
@@ -73,7 +81,7 @@ namespace RunePact.Core
             CreateEnemies(formation,encounter);
             for(int i=0;i<3;i++) {
                 Fighters[i].Gear=gear==null?0:gear[i];
-                for(int copy=0;copy<2;copy++) for(int slot=0;slot<3;slot++) Deck.Add(new Card(i,slot));
+                for(int copy=0;copy<2;copy++) for(int slot=0;slot<3;slot++) Deck.Add(new Card(i,slot,copy==1&&slot==1?(CardVariant)((int)CardVariant.Oath+i):CardVariant.Standard));
             }
             if(extraCards!=null)foreach(var card in extraCards)Deck.Add(new Card(card.Owner,card.Slot,card.Variant));
             Shuffle();
@@ -88,10 +96,10 @@ namespace RunePact.Core
             if(formation==EnemyFormation.Shieldwall){AddEnemy(3,"SENTINELA",EnemyRole.Sentinel,174+scale);AddEnemy(4,"SENTINELA",EnemyRole.Sentinel,150+scale);AddEnemy(5,"CANTOR",EnemyRole.Acolyte,118+scale);return;}
             if(formation==EnemyFormation.Hunt){AddEnemy(3,"CAÇADOR",EnemyRole.Assassin,132+scale);AddEnemy(4,"CAÇADOR",EnemyRole.Assassin,122+scale);AddEnemy(5,"ACÓLITO",EnemyRole.Acolyte,130+scale);return;}
             if(formation==EnemyFormation.Pyre){AddEnemy(3,"PIROMANTE",EnemyRole.Pyromancer,138+scale);AddEnemy(4,"BRUTAMONTES",EnemyRole.Brute,172+scale);AddEnemy(5,"CINZA",EnemyRole.Pyromancer,118+scale);return;}
-            if(formation==EnemyFormation.Regent){AddEnemy(3,"REGENTE DE ÂMBAR",EnemyRole.Regent,120);AddEnemy(4,"",EnemyRole.Sentinel,1);AddEnemy(5,"",EnemyRole.Acolyte,1);Fighters[4].Hp=Fighters[5].Hp=0;return;}
+            if(formation==EnemyFormation.Regent){AddEnemy(3,"REGENTE DE ÂMBAR",EnemyRole.Regent,QuickMode?120:220);AddEnemy(4,"",EnemyRole.Sentinel,1);AddEnemy(5,"",EnemyRole.Acolyte,1);Fighters[4].Hp=Fighters[5].Hp=0;return;}
             AddEnemy(3,"BRUTAMONTES",EnemyRole.Brute,155+scale);AddEnemy(4,"ACÓLITO",EnemyRole.Acolyte,120+scale);AddEnemy(5,"ASSASSINO",EnemyRole.Assassin,115+scale);
         }
-        void AddEnemy(int id,string name,EnemyRole role,int hp){var fighter=new Fighter(id,name,hp,true);fighter.Role=role;Fighters.Add(fighter);}
+        void AddEnemy(int id,string name,EnemyRole role,int hp){if(role!=EnemyRole.Regent)hp=(int)Math.Ceiling(hp*(Difficulty==EncounterDifficulty.Calm?.78:Difficulty==EncounterDifficulty.Fierce?1.20:1));var fighter=new Fighter(id,name,hp,true);fighter.Role=role;Fighters.Add(fighter);}
         public string GearName(int owner)
         {
             string[,] names={{"Escudo do pacto","Espada de brasa"},{"Chapéu da aurora","Cajado de cinzas"},{"Besta perfurante","Aljava de ecos"}};
@@ -107,6 +115,9 @@ namespace RunePact.Core
         Ability DescribeBase(Card card)
         {
             var f=Fighters[card.Owner];
+            if(card.Variant==CardVariant.Oath)return Make("Juramento de aço","Aura • habilidade única",Effect.Oath,21+f.Tier*5,1,"Concede {0} de escudo; devolve 7 por ataque durante 2 turnos.");
+            if(card.Variant==CardVariant.Purify)return Make("Aurora purificadora","Lyra • habilidade única",Effect.Purify,19+f.Tier*5,1,"Cura {0}, remove queimadura e fraqueza e regenera 10 por 2 turnos.");
+            if(card.Variant==CardVariant.Execution)return Make("Arremate rúnico","Kael • habilidade única",Effect.Execute,30+f.Tier*6,1,"Causa {0} de dano perfurante; +18 se marcado ou vulnerável, além do bônus da Marca.");
             if(card.Variant==CardVariant.ThornMantle)return Make("Manto de espinhos","Jornada • rara",Effect.Thorns,7,1,"Devolve {0} de dano por ataque durante 2 turnos.");
             if(card.Variant==CardVariant.Shatter)return Make("Fratura âmbar","Jornada • rara",Effect.Vulnerable,18,1,"Causa {0} de dano. Próximos 2 ataques causam +25%.");
             if(card.Variant==CardVariant.Tremor)return Make("Golpe sísmico","Jornada • épica",Effect.Stun,15,2,"Causa {0} de dano e impede a próxima ação inimiga. Não acumula.");
@@ -170,6 +181,9 @@ namespace RunePact.Core
                 case Effect.Channel: t.Channel=Math.Max(t.Channel,power);break;
                 case Effect.Regenerate: t.Hp=Math.Min(t.MaxHp,t.Hp+power);t.Regen=2;break;
                 case Effect.Thorns: t.Thorns=2;break;
+                case Effect.Oath: Shield(t,power);t.Thorns=2;break;
+                case Effect.Purify: t.Hp=Math.Min(t.MaxHp,t.Hp+power);t.Burn=0;t.Weak=0;t.Regen=2;break;
+                case Effect.Execute: Hit(t,power+(t.Mark>0||t.Vulnerable>0?18:0),true);break;
                 case Effect.Vulnerable: Hit(t,power,false);if(t.Alive)t.Vulnerable=2;break;
                 case Effect.Stun: Hit(t,power,false);if(t.Alive)t.Stun=1;break;
                 case Effect.Weaken: Hit(t,power,false);if(t.Alive)t.Weak=1;break;
@@ -289,6 +303,7 @@ namespace RunePact.Core
                 else if(f.Role==EnemyRole.Assassin){fx=Effect.Pierce;p=22+(Encounter-1)*2;target=living.OrderBy(x=>x.Hp).First().Id;label="Caçar ferido";}
                 else if(f.Role==EnemyRole.Sentinel){if(Round%2==1){fx=Effect.Guard;p=25;target=Fighters.Where(x=>x.Enemy&&x.Alive).OrderBy(x=>(float)x.Hp/x.MaxHp).ThenBy(x=>x.Role==EnemyRole.Acolyte?0:1).First().Id;label="Muralha rúnica";}else{p=30;label="Investida";}}
                 else if(f.Role==EnemyRole.Pyromancer){fx=Round%2==0?Effect.Volley:Effect.Burn;p=fx==Effect.Volley?16:24;label=fx==Effect.Volley?"Chuva de brasas":"Chama cinerária";}
+                if(f.Role!=EnemyRole.Regent)p=(int)Math.Ceiling(p*(Difficulty==EncounterDifficulty.Calm?.78:Difficulty==EncounterDifficulty.Fierce?1.20:1));
                 Intents.Add(new Intent {Owner=f.Id,Target=target,Power=p,Effect=fx,Label=label});
             }
         }

@@ -1,6 +1,22 @@
 # QA do protótipo (PT-BR)
 
-## Rodada atual: teste rápido V4
+## Rodada atual: visual V6
+
+Regras: **4.512 verificações aprovadas**, incluindo 80 batalhas base e 45 jornadas variadas. Os 17 recortes de arte (nove poses e oito itens) passaram na verificação de conteúdo visível, transparência e margens das células. Build Windows gerado com sucesso.
+
+Inspeção no executável isolado: poses nas cartas, ícones, raridade azul/violeta, HUD e painel de estados, ataque por seleção e clique sem confirmação (155 → 127 de vida), defesa após seleção e arraste (+28 escudo), retorno à pose base, arte de carta/runa/grimório na recompensa e escolha da relíquia levando ao chefe com 120 de vida. O arraste iniciado sem seleção prévia não foi confiável na automação; precisa ser conferido com mouse/toque humano. Clique na carta seguido de clique no alvo foi validado.
+
+O cenário padrão da revisão mostra seis cartas variadas com energia extra exclusivamente para QA; isso não altera a partida normal nem o salvamento do jogador. As animações são poses e transformações de sprites, não sequências completas quadro a quadro. Android e interação por toque continuam pendentes.
+
+## Marco anterior: V5
+
+As regras passaram em **4.512 verificações**, incluindo 80 batalhas base e 45 jornadas variadas com salvamento exato. Testes novos cobrem os três níveis de dificuldade, uma carta única por guerreiro, efeitos exclusivos, rota padrão com dois encontros e chefe de 220 de vida, migração de salvamento V4, além da persistência do modo e do cronômetro. O build Windows compilou. A inspeção visual confirmou menu, combate, ordem inimiga, seleção de carta, arraste para o alvo, prévia/cancelar/confirmar sem gasto antecipado e resolução de ataque. O gesto ainda precisa de validação com toque em aparelho real.
+
+Um bot simples de referência fez 24 jornadas por combinação de modo/dificuldade: rápido 24/24 vitórias em todos os níveis; padrão 24/24 em calma e normal, 23/24 em intensa. Médias de cartas usadas: rápido 35/41/47 e padrão 69/82/91 (calma/normal/intensa). Isso mostra aumento de duração e pressão, mas **não comprova diversão ou balanceamento humano**. O relatório gerado `BalanceTestResults.txt` é ignorado pelo Git.
+
+Android não foi compilado ou validado nesta rodada. O layout é horizontal; orientação vertical mostra aviso para girar. Testes em múltiplos tamanhos de janela, hardware de toque, áreas seguras reais e desempenho mobile permanecem pendentes.
+
+## Marco anterior: teste rápido V4
 
 Regras passaram em **5.153 verificações**: 80 batalhas base e 45 jornadas variadas. Para garantir cobertura das recompensas, o teste força o checkpoint de vitória entre etapas quando necessário; não representa 45 vitórias humanas ou comprovação de balanceamento. Cobertura adicional: nove cartas de jornada alcançáveis, cinco relíquias, efeitos nos lados corretos, novos estados, chefe solo com 120 de vida, fase 2 sem escudo duplicado, aprimoramento individual, salvamento exato e rejeição de dados alterados/truncados.
 
@@ -42,7 +58,23 @@ O build inicial para Windows foi verificado para a cena de batalha, seis sprites
 
 # Prototype QA (EN)
 
-## Current milestone: quick test V4
+## Current milestone: visual V6
+
+Rules: **4,512 assertions passed**, including 80 base battles and 45 varied journeys. All 17 art cells (nine poses and eight items) passed visible-content, transparency, and cell-margin checks. Windows build succeeded.
+
+Isolated executable inspection: card poses, icons, blue/violet rarity, HUD and status panel, immediate select-and-click attack (155 → 127 HP), defense after selecting and dragging (+28 shield), return to base pose, card/rune/grimoire reward artwork, and relic selection advancing to the 120-HP boss. Dragging without prior selection was unreliable in automation and needs human mouse/touch verification. Selecting a card and clicking its target was verified.
+
+The default review scenario shows six varied cards with extra energy for QA only; it does not change normal runs or the player's save. Animations use sprite poses and transforms, not complete frame-by-frame sequences. Android and touch interaction remain untested.
+
+## Previous milestone: V5
+
+Rules passed **4,512 assertions**, including 80 base battles and 45 varied journeys with exact saves. New tests cover the three difficulty bands, one unique card per warrior, unique effects, the standard two-encounter route and 220-health boss, V4 save migration, and mode/timer persistence. The Windows build compiled. Visual inspection confirmed the menu, combat, enemy order, card selection, dragging onto a target, preview/cancel/confirm without early resource spending, and attack resolution. The gesture still needs validation on real touch hardware.
+
+A simple baseline bot ran 24 journeys per mode/difficulty combination: quick mode won 24/24 at every level; standard won 24/24 on calm and normal, 23/24 on fierce. Mean cards played: quick 35/41/47 and standard 69/82/91 (calm/normal/fierce). This demonstrates increased duration and pressure but **does not prove human-facing fun or balance**. The generated `BalanceTestResults.txt` report is Git-ignored.
+
+Android was not built or validated in this milestone. Layout is landscape-first; portrait orientation shows a rotate-device prompt. Tests across window sizes, touch hardware, real safe areas, and mobile performance remain pending.
+
+## Earlier milestone: quick test V4
 
 Rules passed **5,153 assertions**: 80 base battles and 45 varied journeys. To guarantee reward coverage, the test forces a victory checkpoint between stages when needed; this does not represent 45 human wins or proof of balance. Additional coverage: nine reachable journey cards, five relics, correct effect sides, new states, solo 120-health boss, phase two without duplicate shields, individual upgrades, exact saving, and rejection of modified/truncated data.
 

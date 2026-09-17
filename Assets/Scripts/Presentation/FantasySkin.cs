@@ -15,6 +15,10 @@ namespace RunePact.Presentation
         public static Sprite Leaf { get; private set; }
         public static Sprite Flame { get; private set; }
         public static Sprite Arrow { get; private set; }
+        public static Sprite Sword { get; private set; }
+        public static Sprite Heart { get; private set; }
+        public static Sprite Rune { get; private set; }
+        public static Sprite Frame { get; private set; }
 
         public static void Initialize()
         {
@@ -41,19 +45,49 @@ namespace RunePact.Presentation
             });
             Arrow = Create((x,y) => Mathf.Max(Mathf.Min(.74f-Mathf.Abs(x),.055f-Mathf.Abs(y)),
                 Mathf.Min(x-.10f,Mathf.Min(.84f-x,(.84f-x)*.70f-Mathf.Abs(y)))));
+            Sword=Pattern(new[]{"..............##",".............###","............###.","...........###..","..........###...",".........###....","........###.....","...##..###......","....#####.......",".....###........","....#####.......","...###..##......","..###...........",".###............","###.............","##.............."});
+            Shield=Pattern(new[]{"................","..############..","..############..","..###......###..","..###..##..###..","..###..##..###..","..########.###..","..########.###..","...##..##..##...","...##..##..##...","....##.##.##....","....##.##.##....",".....######.....","......####......",".......##.......","................"});
+            Heart=Pattern(new[]{"................","..####....####..",".######..######.","################","################","################","################",".##############.","..############..","...##########...","....########....",".....######.....","......####......",".......##.......","................","................"});
+            Rune=Pattern(new[]{".......##.......","......####......",".....##..##.....","....##.##.##....","...##..##..##...","..##...##...##..",".##....##....##.","##.##########.##","##.##########.##",".##....##....##.","..##...##...##..","...##..##..##...","....##.##.##....",".....##..##.....","......####......",".......##......."});
+            Frame=CreateFrame();
+        }
+
+        static Sprite Pattern(string[] rows)
+        {
+            int size=rows.Length;var texture=new Texture2D(size,size,TextureFormat.RGBA32,false);
+            texture.filterMode=FilterMode.Point;texture.wrapMode=TextureWrapMode.Clamp;
+            var colors=new Color[size*size];
+            for(int y=0;y<size;y++)for(int x=0;x<size;x++)colors[(size-1-y)*size+x]=rows[y][x]=='#'?Color.white:Color.clear;
+            texture.SetPixels(colors);texture.Apply(false,true);
+            return Sprite.Create(texture,new Rect(0,0,size,size),new Vector2(.5f,.5f),100);
+        }
+        static Sprite CreateFrame()
+        {
+            const int size=48;var texture=new Texture2D(size,size,TextureFormat.RGBA32,false);
+            texture.filterMode=FilterMode.Point;texture.wrapMode=TextureWrapMode.Clamp;
+            var colors=new Color[size*size];
+            for(int y=0;y<size;y++)for(int x=0;x<size;x++){
+                int edge=Mathf.Min(x,y,size-1-x,size-1-y);
+                int corner=Mathf.Min(x,size-1-x)+Mathf.Min(y,size-1-y);
+                bool inside=edge>=1&&corner>=9;
+                bool inner=edge>=5&&corner>=16;
+                colors[y*size+x]=inside&&!inner?new Color(1,1,1,edge==1||corner==9?.55f:1):Color.clear;
+            }
+            texture.SetPixels(colors);texture.Apply(false,true);
+            return Sprite.Create(texture,new Rect(0,0,size,size),new Vector2(.5f,.5f),100,0,SpriteMeshType.FullRect,new Vector4(13,13,13,13));
         }
 
         static Sprite Create(System.Func<float,float,float> shape,bool sliced=false)
         {
-            const int size=96;
+            const int size=32;
             var tex=new Texture2D(size,size,TextureFormat.RGBA32,false);
-            tex.name="RunePact UI shape";tex.filterMode=FilterMode.Bilinear;tex.wrapMode=TextureWrapMode.Clamp;
+            tex.name="RunePact pixel UI";tex.filterMode=FilterMode.Point;tex.wrapMode=TextureWrapMode.Clamp;
             var pixels=new Color[size*size];
             for(int y=0;y<size;y++)for(int x=0;x<size;x++)
-                pixels[y*size+x]=new Color(1,1,1,Mathf.Clamp01(shape((x+.5f)/size*2-1,(y+.5f)/size*2-1)*size*.5f));
+                pixels[y*size+x]=new Color(1,1,1,shape((x+.5f)/size*2-1,(y+.5f)/size*2-1)>=0?1:0);
             tex.SetPixels(pixels);tex.Apply(false,true);
             return Sprite.Create(tex,new Rect(0,0,size,size),new Vector2(.5f,.5f),100,0,SpriteMeshType.FullRect,
-                sliced?new Vector4(20,20,20,20):Vector4.zero);
+                sliced?new Vector4(8,8,8,8):Vector4.zero);
         }
     }
 

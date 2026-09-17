@@ -12,15 +12,22 @@ namespace RunePact.Presentation
         {
             var r=Box(parent,name,x,y,w,h,color);
             var image=r.GetComponent<Image>();image.sprite=FantasySkin.Rounded;image.type=Image.Type.Sliced;
-            image.pixelsPerUnitMultiplier=1.8f;
+            image.pixelsPerUnitMultiplier=.65f;
             return r;
         }
         RectTransform Surface(Transform parent,string name,float x,float y,float w,float h,Color color)
         {
             Round(parent,name+" shadow",x,y+5,w,h,new Color(.04f,.07f,.07f,.50f));
             var r=Round(parent,name,x,y,w,h,color);
-            Round(r,"Upper bevel",8,2,w-16,3,new Color(1f,.96f,.79f,.20f));
-            Round(r,"Lower bevel",8,h-5,w-16,3,new Color(.06f,.09f,.07f,.20f));
+            var rim=Orb(r,FantasySkin.Frame,0,0,w,h,new Color(.76f,.60f,.34f,.75f));rim.type=Image.Type.Sliced;
+            Box(r,"Upper bevel",14,5,w-28,2,new Color(1f,.91f,.64f,.24f));
+            Box(r,"Lower bevel",14,h-7,w-28,2,new Color(.03f,.045f,.04f,.55f));
+            if(w>280&&h>100){
+                foreach(float cx in new[]{13f,w-19})foreach(float cy in new[]{13f,h-19}){
+                    Box(r,"Iron stud shadow",cx+1,cy+2,6,6,new Color(.05f,.08f,.08f,.8f));
+                    Orb(r,FantasySkin.Rune,cx,cy,6,6,gold);
+                }
+            }
             return r;
         }
         Image Orb(Transform parent,Sprite shape,float x,float y,float w,float h,Color color)
@@ -36,17 +43,17 @@ namespace RunePact.Presentation
         Color EffectColor(Effect effect,int owner)
         {
             switch(effect){
-                case Effect.Mend: case Effect.Regenerate: case Effect.Thorns: return new Color(.57f,1f,.62f);
-                case Effect.Guard: case Effect.Rally: case Effect.Fortify: return new Color(.48f,.88f,1f);
+                case Effect.Mend: case Effect.Regenerate: case Effect.Thorns: case Effect.Purify: return new Color(.57f,1f,.62f);
+                case Effect.Guard: case Effect.Rally: case Effect.Fortify: case Effect.Oath: return new Color(.48f,.88f,1f);
                 case Effect.Burn: return new Color(1f,.53f,.20f);
                 case Effect.Channel: case Effect.Volley: case Effect.Weaken: case Effect.Stun: return violet;
-                case Effect.Mark: case Effect.Vulnerable: return gold;
+                case Effect.Mark: case Effect.Vulnerable: case Effect.Execute: return gold;
                 default: return owner==1||owner==4?violet:gold;
             }
         }
         bool FriendlyEffect(Effect effect)
         {
-            return effect==Effect.Guard||effect==Effect.Rally||effect==Effect.Fortify||effect==Effect.Channel||effect==Effect.Mend||effect==Effect.Regenerate||effect==Effect.Thorns;
+            return effect==Effect.Guard||effect==Effect.Rally||effect==Effect.Fortify||effect==Effect.Channel||effect==Effect.Mend||effect==Effect.Regenerate||effect==Effect.Thorns||effect==Effect.Oath||effect==Effect.Purify;
         }
         Vector2 UnitCenter(int id){return positions[id]+new Vector2(110,78);}
 
@@ -56,15 +63,15 @@ namespace RunePact.Presentation
             Vector2 start=UnitCenter(owner),end=UnitCenter(target);
             var stage=Box(fxRoot,"Cast",0,0,1600,900);
             var halo=Orb(stage,FantasySkin.Ring,start.x-47,start.y-47,94,94,color);
-            bool melee=effect==Effect.Strike&&(owner==0||owner==3);
+            bool melee=!FriendlyEffect(effect)&&(owner==0||owner==3)&&effect!=Effect.Volley;
             bool support=FriendlyEffect(effect);
             bool arrow=!support&&(owner==2||owner==5);
             var projectile=Orb(stage,melee?FantasySkin.Slash:effect==Effect.Burn?FantasySkin.Flame:arrow?FantasySkin.Arrow:FantasySkin.Spark,start.x-22,start.y-22,44,44,color);
             var core=Orb(projectile.transform,FantasySkin.Circle,13,13,18,18,cream);
             var trail=new List<Image>();
             for(int i=0;i<9;i++)trail.Add(Orb(stage,FantasySkin.Circle,start.x,start.y,8,8,color));
-            float duration=melee?.25f:support?.38f:.42f;
-            var basePosition=new Vector2(positions[owner].x,-positions[owner].y);
+            float duration=melee?.34f:support?.50f:.42f;
+            var basePosition=new Vector2(110,-166);
             for(float elapsed=0;elapsed<duration;elapsed+=Time.deltaTime){
                 float t=Mathf.Clamp01(elapsed/duration);
                 halo.rectTransform.localScale=Vector3.one*(.65f+t*.85f);halo.color=new Color(color.r,color.g,color.b,(1-t)*.7f);
@@ -77,10 +84,13 @@ namespace RunePact.Presentation
                     trail[i].rectTransform.anchoredPosition=new Vector2(p.x,-p.y);
                     trail[i].color=new Color(color.r,color.g,color.b,(1-i/9f)*.55f);
                 }
-                if(melee)units[owner].anchoredPosition=basePosition+new Vector2((owner<3?1:-1)*Mathf.Sin(t*Mathf.PI)*34,0);
+                float pulse=Mathf.Sin(t*Mathf.PI),facing=owner<3?1:-1;
+                if(melee){portraits[owner].rectTransform.anchoredPosition=basePosition+new Vector2(facing*pulse*55,0);portraits[owner].rectTransform.localRotation=Quaternion.Euler(0,0,-facing*pulse*9);}
+                else if(arrow){portraits[owner].rectTransform.anchoredPosition=basePosition+new Vector2(-facing*pulse*9,0);}
+                else {portraits[owner].rectTransform.localScale=new Vector3(facing*(1+pulse*.035f),1+pulse*.025f,1);}
                 yield return null;
             }
-            units[owner].anchoredPosition=basePosition;Destroy(stage.gameObject);
+            portraits[owner].rectTransform.anchoredPosition=basePosition;Destroy(stage.gameObject);
         }
 
         IEnumerator Impact(int target,Effect effect,Color color)
@@ -88,14 +98,16 @@ namespace RunePact.Presentation
             Vector2 center=UnitCenter(target);
             var stage=Box(fxRoot,"Impact",center.x,center.y,1,1);
             var ring=Orb(stage,FantasySkin.Ring,-58,-58,116,116,color);
-            Sprite symbol=effect==Effect.Burn?FantasySkin.Flame:effect==Effect.Mend||effect==Effect.Regenerate||effect==Effect.Thorns?FantasySkin.Leaf:
-                effect==Effect.Guard||effect==Effect.Rally||effect==Effect.Fortify?FantasySkin.Shield:
-                effect==Effect.Strike||effect==Effect.Pierce?FantasySkin.Slash:FantasySkin.Spark;
+            Sprite symbol=effect==Effect.Burn?FantasySkin.Flame:effect==Effect.Mend||effect==Effect.Purify||effect==Effect.Regenerate||effect==Effect.Thorns?FantasySkin.Leaf:
+                effect==Effect.Guard||effect==Effect.Rally||effect==Effect.Fortify||effect==Effect.Oath?FantasySkin.Shield:
+                effect==Effect.Strike||effect==Effect.Pierce||effect==Effect.Execute?FantasySkin.Slash:FantasySkin.Spark;
             var glyph=Orb(stage,symbol,-43,-51,86,102,color);
-            if(effect==Effect.Mend){Label(stage,"+",-32,-45,64,77,61,cream,TextAnchor.MiddleCenter,true);}
+            if(effect==Effect.Mend||effect==Effect.Purify){Label(stage,"+",-32,-45,64,77,61,cream,TextAnchor.MiddleCenter,true);}
             var particles=new List<Image>();
             for(int i=0;i<12;i++)particles.Add(Orb(stage,effect==Effect.Burn?FantasySkin.Flame:effect==Effect.Mend?FantasySkin.Leaf:FantasySkin.Spark,-6,-6,12,12,color));
             bool friendly=FriendlyEffect(effect);
+            bool reactionPose=target<3&&!acting[target]&&IsWard(effect);
+            if(reactionPose)BeginAct(target,effect);
             var original=new Vector2(positions[target].x,-positions[target].y);
             for(float elapsed=0;elapsed<.65f;elapsed+=Time.deltaTime){
                 float t=Mathf.Clamp01(elapsed/.65f);
@@ -120,6 +132,7 @@ namespace RunePact.Presentation
             }
             units[target].anchoredPosition=original;
             portraits[target].color=Match.Fighters[target].Alive?Color.white:new Color(.3f,.35f,.4f,.35f);
+            if(reactionPose)EndAct(target);
             Destroy(stage.gameObject);
         }
         IEnumerator TurnBanner(string title,Color color)

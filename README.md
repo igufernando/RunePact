@@ -12,26 +12,28 @@ O idioma atual para jogadores é somente português brasileiro.
 
 ### Recursos do protótipo
 
-Consulte o [teste rápido e clareza de combate](Docs/GAMEPLAY-V4.md) para o estado atual: **um encontro → recompensa → chefe solo com 120 de vida**, cartas ilustradas, novos estados e salvamento exato. As versões V2/V3 registram marcos anteriores.
+Consulte a [rodada visual V6](Docs/VISUAL-V6.md) para cartas ilustradas por habilidade, raridades, itens e animações. A [V5](Docs/GAMEPLAY-V5.md) registra os modos rápido/padrão, dificuldades e cartas exclusivas; a confirmação de alvo foi removida na V6.
 
 Consulte também [jornada e decisões](Docs/GAMEPLAY-V3.md) para formações, relíquias, chefe, pausa e salvamento local.
 
 A [direção da interface e dos efeitos](Docs/VISUAL-DESIGN.md) descreve a HUD de fantasia, as cartas em pergaminho e a apresentação do combate.
 
-- Primeiro combate 3 contra 3, seguido pelo Regente de Âmbar, com intenções inimigas visíveis.
+- Um ou dois combates 3 contra 3, seguidos pelo Regente de Âmbar, com ordem e intenções inimigas visíveis.
 - Baralho compartilhado, energia, escudo, cura, queimadura, dano em área e dano perfurante.
 - Duas escolhas de equipamento por aliado e três níveis de melhoria durante a partida.
 - Bônus de Pacto por usar os três aliados em um turno.
 - Personagens e arena originais em pixel art gerados para o projeto.
-- Seis novas cartas, melhorias de habilidade individual, relíquias e inspeção de estados.
+- Cartas exclusivas dos três guerreiros, melhorias de habilidade individual, relíquias e inspeção de estados.
 - Efeitos persistentes, respiração ancorada nos pés, pausa e velocidade 1×/2×.
+- Cartas com poses por habilidade, ícones de função e molduras por raridade; HUD medieval em pixel art.
+- Arraste de cartas e uso direto no alvo, catálogo e estatísticas locais de partidas.
 
 ### Início rápido
 
 1. Instale a Unity `6000.5.2f1` com suporte a build Windows.
 2. Adicione esta pasta do repositório à Unity Hub.
 3. Abra `Assets/Scenes/Battle.unity` e pressione Play.
-4. Selecione uma carta e depois um alvo destacado.
+4. Escolha modo e dificuldade. Selecione uma carta e clique no alvo, ou arraste-a até ele: a habilidade é usada imediatamente, sem confirmação extra.
 
 A cena cria propositalmente a interface de gameplay durante a execução. A ausência de objetos estáticos de interface antes do Play é esperada.
 
@@ -47,7 +49,7 @@ A cena cria propositalmente a interface de gameplay durante a execução. A aus�
 
 ### Verificações de qualidade
 
-Use **RunePact > Test combat rules** dentro da Unity após mudanças de gameplay. A rodada V4 passou em 5.153 verificações, com 80 batalhas base e 45 jornadas variadas; veja as [notas de QA](Docs/QA.md) para escopo, checkpoints forçados e limitações.
+Use **RunePact > Test combat rules** dentro da Unity após mudanças de gameplay. Consulte as [notas de QA](Docs/QA.md) para resultados atuais, simulações de balanceamento e limitações.
 
 ### Regras de contribuição
 
@@ -69,26 +71,28 @@ The current player-facing language is Brazilian Portuguese only.
 
 ### Prototype features
 
-See [quick test and combat clarity](Docs/GAMEPLAY-V4.md) for the current state: **one encounter → reward → solo boss with 120 health**, illustrated cards, new states, and exact saves. V2/V3 record earlier milestones.
+See the [V6 visual milestone](Docs/VISUAL-V6.md) for ability-specific card illustrations, rarities, items, and animations. [V5](Docs/GAMEPLAY-V5.md) records quick/standard modes, difficulties, and unique cards; target confirmation was removed in V6.
 
 See [journey and decisions](Docs/GAMEPLAY-V3.md) for formations, relics, boss, pause, and local saving.
 
 The [interface and effects direction](Docs/VISUAL-DESIGN.md) describes the fantasy HUD, parchment cards, and combat presentation.
 
-- First 3v3 battle followed by the Amber Regent, with visible enemy intentions.
+- One or two 3v3 battles followed by the Amber Regent, with visible enemy order and intentions.
 - Shared deck, energy, shield, healing, burn, area damage, and piercing damage.
 - Two equipment choices per ally and three in-match upgrade tiers.
 - A Pact bonus for using all three allies in one turn.
 - Original generated pixel-art character and arena assets.
-- Six new cards, individual ability upgrades, relics, and status inspection.
+- Unique cards for all three warriors, individual ability upgrades, relics, and status inspection.
 - Persistent effects, foot-anchored breathing, pause, and 1×/2× speed.
+- Ability-specific poses, purpose icons, rarity frames, and a medieval pixel-art HUD.
+- Card dragging and direct target use, a catalog, and local run statistics.
 
 ### Quick start
 
 1. Install Unity `6000.5.2f1` with Windows Build Support.
 2. Add this repository folder to Unity Hub.
 3. Open `Assets/Scenes/Battle.unity` and press Play.
-4. Select a card and then a highlighted target.
+4. Choose mode and difficulty. Select a card and click its target, or drag it there: the ability activates immediately without extra confirmation.
 
 The scene intentionally creates its gameplay UI at runtime. The absence of static UI objects before Play is expected.
 
@@ -104,7 +108,7 @@ The scene intentionally creates its gameplay UI at runtime. The absence of stati
 
 ### Quality checks
 
-Use **RunePact > Test combat rules** inside Unity after gameplay changes. V4 passed 5,153 assertions with 80 base battles and 45 varied journeys; see the [QA notes](Docs/QA.md) for scope, forced checkpoints, and limitations.
+Use **RunePact > Test combat rules** inside Unity after gameplay changes. See the [QA notes](Docs/QA.md) for current results, balance simulations, and limitations.
 
 ### Contribution rules
 

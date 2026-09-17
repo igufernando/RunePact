@@ -13,10 +13,12 @@ public static class PrototypeBuild
     [MenuItem("RunePact/Prepare scene and test")]
     public static void Prepare()
     {
-        foreach(var path in new[]{"Assets/Resources/Art/Warriors.png","Assets/Resources/Art/Arena.png","Assets/Resources/Art/Regent-v1.png"}) {
+        foreach(var path in new[]{"Assets/Resources/Art/Warriors.png","Assets/Resources/Art/Arena.png","Assets/Resources/Art/Regent-v1.png","Assets/Resources/Art/WarriorActions-v1.png","Assets/Resources/Art/Rewards-v2.png"}) {
             var importer=(TextureImporter)AssetImporter.GetAtPath(path);
             importer.textureType=TextureImporterType.Default;importer.isReadable=!path.Contains("Arena");importer.filterMode=FilterMode.Point;importer.textureCompression=TextureImporterCompression.Uncompressed;importer.maxTextureSize=2048;importer.npotScale=TextureImporterNPOTScale.None;importer.mipmapEnabled=false;importer.alphaSource=TextureImporterAlphaSource.FromInput;importer.SaveAndReimport();
         }
+        ValidateAtlas("Assets/Resources/Art/WarriorActions-v1.png",3,3);
+        ValidateAtlas("Assets/Resources/Art/Rewards-v2.png",4,2);
         Directory.CreateDirectory("Assets/Scenes");
         var scene=EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
         new GameObject("RunePact Battle",typeof(BattleScreen));
@@ -36,6 +38,25 @@ public static class PrototypeBuild
         var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions {scenes=new[]{"Assets/Scenes/Battle.unity"},locationPathName="Builds/Windows/RunePact.exe",target=BuildTarget.StandaloneWindows64,options=BuildOptions.None});
         if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Build failed: "+report.summary.result);
         Debug.Log("RUNEPACT_BUILD_SUCCESS "+report.summary.totalSize);
+    }
+    static void ValidateAtlas(string path,int columns,int rows)
+    {
+        var texture=AssetDatabase.LoadAssetAtPath<Texture2D>(path);
+        var pixels=texture.GetPixels32();
+        for(int row=0;row<rows;row++)for(int column=0;column<columns;column++){
+            int left=column*texture.width/columns,right=(column+1)*texture.width/columns;
+            int bottom=row*texture.height/rows,top=(row+1)*texture.height/rows;
+            int visible=0,transparent=0,edge=0;
+            for(int y=bottom;y<top;y++)for(int x=left;x<right;x++){
+                byte alpha=pixels[y*texture.width+x].a;
+                if(alpha<10)transparent++;
+                if(alpha>40){visible++;if(x==left||x==right-1||y==bottom||y==top-1)edge++;}
+            }
+            int area=(right-left)*(top-bottom);
+            if(visible<area/100||transparent<area/5||edge>0)
+                throw new Exception("Invalid sprite alpha or cell margins: "+path+" cell "+column+","+row+" visible="+visible+" transparent="+transparent+" edge="+edge);
+        }
+        Debug.Log("RUNEPACT_ART_VALIDATED "+path+" cells="+(columns*rows));
     }
     [MenuItem("RunePact/Build isolated visual review")]
     public static void Review()
@@ -105,6 +126,20 @@ public static class PrototypeBuild
         var boss=new Battle(14,null,2,EnemyFormation.Regent);boss.Fighters[3].Hp=60;boss.Plan();check(boss.BossPhase==2&&boss.Fighters[3].Shield==12,"regent phase two awakens");
         var shieldwall=new Battle(15,null,1,EnemyFormation.Shieldwall);check(shieldwall.Fighters.Skip(3).Any(x=>x.Role==EnemyRole.Sentinel),"shieldwall formation");
         var pyre=new Battle(16,null,1,EnemyFormation.Pyre);check(pyre.Fighters.Skip(3).Count(x=>x.Role==EnemyRole.Pyromancer)==2,"pyre formation");
+        var calm=new Battle(16,null,1,EnemyFormation.Vanguard,null,null,null,EncounterDifficulty.Calm);
+        var fierce=new Battle(16,null,1,EnemyFormation.Vanguard,null,null,null,EncounterDifficulty.Fierce);
+        check(calm.Fighters[3].MaxHp<b.Fighters[3].MaxHp&&fierce.Fighters[3].MaxHp>b.Fighters[3].MaxHp,"three encounter difficulty bands");
+        var skills=new Battle(8);
+        check(skills.Deck.Count(x=>x.Variant==CardVariant.Oath||x.Variant==CardVariant.Purify||x.Variant==CardVariant.Execution)==3,"one unique card per warrior");
+        skills.Resolve(Effect.Oath,21,0,false);check(skills.Fighters[0].Shield==21&&skills.Fighters[0].Thorns==2,"Aura oath shields and retaliates");
+        skills.Fighters[1].Burn=2;skills.Fighters[1].Weak=1;skills.Fighters[1].Hp=50;skills.Resolve(Effect.Purify,19,1,false);
+        check(skills.Fighters[1].Hp==69&&skills.Fighters[1].Burn==0&&skills.Fighters[1].Weak==0&&skills.Fighters[1].Regen==2,"Lyra purifies and regenerates");
+        skills.Fighters[3].Mark=1;int executionHp=skills.Fighters[3].Hp;skills.Resolve(Effect.Execute,30,3,false);
+        check(skills.Fighters[3].Hp==executionHp-58,"Kael executes marked target");
+        var standard=new Journey(22,null,false,EncounterDifficulty.Fierce);check(standard.TotalEncounters==3&&standard.Difficulty==EncounterDifficulty.Fierce,"standard route and difficulty");
+        for(int stage=1;stage<=2;stage++){standard.Current.Fighters.Skip(3).ToList().ForEach(f=>f.Hp=0);standard.Current.CheckOutcome();check(standard.ChooseReward(1)&&standard.Encounter==stage+1,"standard checkpoint "+stage);}
+        check(standard.Formation==EnemyFormation.Regent&&standard.Current.Fighters[3].MaxHp==220,"standard boss length");
+        standard.ElapsedSeconds=75;check(Journey.TryRestore(standard.Save(),out var standardRestored)&&standardRestored.Save()==standard.Save(),"standard save roundtrip with timer");
         // Bots com seed jogam partidas completas para cobrir reembaralhamento, eliminação, novo alvo da IA e término.
         // Seeded bots play whole matches to cover reshuffling, elimination, AI retarget and termination.
         int wins=0, losses=0,draws=0;
@@ -126,5 +161,6 @@ public static class PrototypeBuild
         PrototypeRegression.Run(check);
         string result="PASS: "+count+" assertions; 80 seeded base battles + 45 varied journeys; base wins="+wins+" losses="+losses+" draws="+draws;
         File.WriteAllText("CombatTestResults.txt",result);Debug.Log("RUNEPACT_TESTS "+result);
+        string balance=PrototypeBalance.Run();File.WriteAllText("BalanceTestResults.txt",balance);Debug.Log("RUNEPACT_BALANCE\n"+balance);
     }
 }
